@@ -1,0 +1,10 @@
+node_modules
+bower_components
+.DS_Store
+.tmp
+log
+config
+config.js
+config/
+uploadFolder/
+!node_module/libs/beatport/beatportProxy.js
