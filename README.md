@@ -1,6 +1,6 @@
 # Build locally
 ```
-node node_modules/grunt-nodemon/node_modules/.bin/nodemon  server.js
+node node_modules/nodemon/bin/nodemon.js  server.js
 ```
 Starts the server locally on the port: 3000.
 
