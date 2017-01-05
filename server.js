@@ -32,8 +32,7 @@ var expressValidator = require('express-validator');
 
 var config = rootRequire('config/config');
 var cloudstorage = rootRequire('libs/cdn/cloudstorage');
-var fileUtils = rootRequire('utils/file-utils');
-var stripe = require("stripe")(config.STRIPE_PRIVATE);
+var fileUtils = rootRequire('utils/file-utils'); 
 /*
  * Require controllers
  */
@@ -125,92 +124,6 @@ app.get('/', function(req, res, next) {
   });
 });
 
-app.get('/testUpload', function(req, res) {
-  cloudstorage.upload('img/default.png',
-    __dirname + '/uploadFolder/img/1_1421078454067_KennyRandomWallpaper.jpg',
-    function(err, filename) {
-      if (err) {
-        console.log(err);
-        res.status = 500;
-        res.json({
-          status: 'ERROR',
-          message: 'Error uploading file',
-          filename: filename
-        });
-        return;
-      }
-      res.status = 200;
-      res.send();
-    });
-});
-
-/**
- * TODO fix ugly redirect and check for authentication
- **/
-app.get('/images/*', function(req, res, next) {
-
-  console.log(req.originalUrl)
-
-  var mimeTypes = {
-    "jpeg": "image/jpeg",
-    "jpg": "image/jpeg",
-    "png": "image/png"
-  };
-
-  var image = req.originalUrl.substring(8, req.originalUrl.length);
-  image = decodeURIComponent(image);
-  console.log(image);
-  cloudstorage.createSignedUrl(image, "GET", 50, function(err, url) {
-    if (err) {
-      //throw err;
-      err.status = 404;
-      err.message = "Image not found";
-      return next(err);
-    }
-    console.log("ERR: ");
-    console.log(err)
-    console.log("URL")
-    console.log(url)
-
-    res.redirect(url);
-  }); /* Cloud storage signed url callback*/
-});
-
-
-/**
- * SNIPPETS
- **/
-app.get('/snippets/*', function(req, res, next) {
-
-  console.log(req.originalUrl)
-
-  var mimeTypes = {
-    "mp3": "audio/mpeg",
-    "ogg": "audio/ogg"
-  };
-
-
-
-  var snippet = req.originalUrl.substring(10, req.originalUrl.length);
-
-  cloudstorage.createSignedUrl(snippet, "GET", 20, function(err, url) {
-    if (err) {
-      //throw err;
-      err.status = 404;
-      err.message = "Image not found";
-      return next(err);
-    }
-    console.log("ERR: ");
-    console.log(err)
-    console.log("URL")
-    console.log(url)
-
-    res.redirect(url);
-  }); /* Cloud storage signed url callback*/
-});
- 
-
-
 //D.I.
 // Create a Controler and pass the App as dependency injection.
 
@@ -223,18 +136,7 @@ var brands = rootRequire('controllers/brands.js').controller(app)
 var tags = rootRequire('controllers/tags.js').controller(app)
 
 // Old legacy to be removed 
-var companies = rootRequire('controllers/companies.js').controller(app)
-var artists = rootRequire('controllers/artists.js').controller(app)
-var labels = rootRequire('controllers/labels.js').controller(app)
-var tracks = rootRequire('controllers/tracks.js').controller(app)
-var tracklists = rootRequire('controllers/tracklists.js').controller(app)
-var releases = rootRequire('controllers/releases.js').controller(app)
-var currencies = rootRequire('controllers/currencies.js').controller(app)
-var prices = rootRequire('controllers/prices.js').controller(app)
-var genres = rootRequire('controllers/genres.js').controller(app)
 var authenticators = rootRequire('controllers/authenticators.js').controller(app)
-var stripePayment = rootRequire('controllers/stripePayment.js').controller(app)
-var earlyUsers = rootRequire('controllers/earlyUsers.js').controller(app)
 
 
 /**
