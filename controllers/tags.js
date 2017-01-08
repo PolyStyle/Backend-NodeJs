@@ -128,7 +128,7 @@ module.exports.controller = function(app) {
     function(req, res) {
       var tag = req.body;
 
-      model.Tags.create({
+      model.Tag.create({
         displayName: tag.displayName,
       }).then(function(tag) { 
         res.send(tag);
