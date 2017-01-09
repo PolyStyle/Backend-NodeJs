@@ -135,7 +135,58 @@ module.exports.controller = function(app) {
       });
     }
   );
-}; /* End of genres controller */
+
+   /**
+   * PUT /tags/:tagId
+   * Update the tag with id equals to tagId
+   */
+  app.put('/tags/:tagId',
+    function(req, res, next) {
+      req.checkParams('tagId', 'Invalid post id').notEmpty().isInt();
+      var errors = req.validationErrors();
+      if (errors) {
+        return throwValidationError(errors, next);
+      }
+      var tagId = req.params.tagId;
+      model.Tag.find({
+        where: {
+          id: tagId
+        }
+      }).then(function(tag) {
+        if (!tag) {
+          return res.status(400).send({
+            message: 'Tag not found'
+          });
+        }
+        tag.displayName = req.body.displayName || tag.displayName;
+        tag.save(function(err) {
+          if (err) {
+            return next(err);
+          }
+          res.status(200).end();
+        });
+      });
+    });
+
+  /**
+   * DELETE /tags/:tagId
+   * Remove a Tag with id equals to tagId
+   */
+  app.delete('/tags/:tagId',
+    function(req, res) {
+      var tagId = req.params.tagId;
+      console.log('DELETE TRACK');
+      model.Tag.findOne({
+        where: {
+          id: tagId
+        }
+      }).then(function(tag) {
+        tag.destroy().then(function() {
+          res.send();
+        });
+      });
+    });
+}; /* End of tags controller */
 
 
 /* 
