@@ -10,7 +10,13 @@ module.exports.controller = function(app) {
    * Get all the product
    */
   app.get('/products/', function(req, res) {
-    model.Product.findAll().then(function(products) {
+    model.Product.findAll({
+        include: [{
+          model: model.Brand
+        },{
+          model: model.Tag
+        }]
+      }).then(function(products) {
       res.send(products);
     });
   });

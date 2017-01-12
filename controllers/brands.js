@@ -90,10 +90,49 @@ module.exports.controller = function(app) {
       });
     });
 
+  /**
+   * PUT /tags/:tagId
+   * Update the tag with id equals to tagId
+   */
+  app.put('/brands/:brandId',
+    function(req, res, next) {
+      console.log('-------');
+      console.log(req);
+      console.log('-------');
+      req.checkParams('brandId', 'Invalid post id').notEmpty().isInt();
+      var errors = req.validationErrors();
+      if (errors) {
+        return throwValidationError(errors, next);
+      }
+      var brandId = req.params.brandId;
+      model.Brand.find({
+        where: {
+          id: brandId
+        }
+      }).then(function(brand) {
+        if (!brand) {
+          return res.status(400).send({
+            message: 'Brand not found'
+          });
+        }
+        console.log('-------');
+        console.log(req.body);
+        console.log('-------');
+        brand.update(req.body).
+          then(function(brand) {
+          if (brand) {
+              res.send(brand);
+          } 
+        }).catch(function(err) {
+          err.status = 500;
+          return next(err);
+        });
+      });
+    });
 
   /**
-   * POST /genres/
-   * Create new genre
+   * POST /brands/
+   * Create new brand
    */
   app.post('/brands/',
     function(req, res) {
@@ -108,6 +147,25 @@ module.exports.controller = function(app) {
       });
     }
   );
+
+   /**
+   * DELETE /brands/:brandId
+   * Remove a Tag with id equals to tagId
+   */
+  app.delete('/brands/:brandId',
+    function(req, res) {
+      var brandId = req.params.brandId;
+      model.Brand.findOne({
+        where: {
+          id: brandId
+        }
+      }).then(function(brand) {
+        brand.destroy().then(function() {
+          res.send();
+        });
+      });
+    });
+
 }; /* End of genres controller */
 
 
