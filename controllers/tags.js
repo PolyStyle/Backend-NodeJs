@@ -136,7 +136,7 @@ module.exports.controller = function(app) {
     }
   );
 
-   /**
+  /**
    * PUT /tags/:tagId
    * Update the tag with id equals to tagId
    */
