@@ -104,68 +104,6 @@ module.exports.controller = function(app) {
     });
 
 
-  /**
-   * POST /products/
-   * Create new products
-   */
-  app.post('/products/',
-    function(req, res) {
-      var product = req.body;
-
-      model.Product.create(
-        product
-      ).then(function(product) { 
-        res.send(product);
-      });
-    }
-  );
-
-  /**
-   * PUT /products/:productId
-   * Update the product with id equals to productId
-   */
-  app.put('/products/:productId',
-    function(req, res, next) {
-      console.log('node update product');
-      req.checkParams('productId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var productId = req.params.productId;
-      model.Product.find({
-        where: {
-          id: productId
-        }
-      }).then(function(product) {
-        if (!product) {
-          return res.status(400).send({
-            message: 'Brand not found'
-          });
-        }
-        console.log('-------');
-        console.log(req.body);
-        console.log('-------');
-        product.update(req.body).
-          then(function(product) {
-          if (product) {
-            // here update all the joined tables,
-            // sequelize has it's own setter and getters ready for the 
-            // model.
-            var tagsIds = req.body.Tags.map((tag) => {
-              return tag.id;
-            });
-
-            Promise.all([product.setTags(tagsIds)]).then(values => { 
-              res.send(product);
-            });
-          } 
-        }).catch(function(err) {
-          err.status = 500;
-          return next(err);
-        });
-      });
-    });
 
 
 
