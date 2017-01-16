@@ -156,7 +156,12 @@ module.exports.controller = function(app) {
               return tag.id;
             });
 
-            Promise.all([product.setTags(tagsIds)]).then(values => { 
+            var brandId = req.body.Brand.id;
+
+            Promise.all([
+              product.setTags(tagsIds),
+              product.setBrand(brandId)
+            ]).then(values => { 
               res.send(product);
             });
           } 
