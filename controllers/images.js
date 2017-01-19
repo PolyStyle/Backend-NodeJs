@@ -1,197 +1,298 @@
 'use strict';
 
 var model = rootRequire('models/model');
-var cloudstorage = rootRequire('libs/cdn/cloudstorage');
+var imageModel = rootRequire('models/images');
+var cdn = rootRequire('libs/cdn/cloudstorage');
+var path = require('path');
+var sharp = require('sharp');
+var multer  = require('multer');
+var fs = require('fs');
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, '/tmp');
+  },
+  filename: function (req, file, cb) {
+    var parsedName = path.parse(file.originalname);
+    cb(null, imageModel.getTemporaryName(parsedName.name, parsedName.ext));
+  }
+});
+// Check encoding, only jpeg and png files are allowed
+var fileFilter = function (req, file, cb) {
 
-function createImageFactory(fieldName, helper) {
-  return function(req, res, next) {
+  var filetypes = /jpeg|jpg|png/;
+  var mimetype = filetypes.test(file.mimetype);
+  var extname = filetypes.test(path.extname(file.originalname).toLowerCase());
 
-    var fieldNameCapital =
-      fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+  if (mimetype && extname) {
+    return cb(null, true);
+  }
+  var err = new Error();
+  err.status = 400;
+  err.message = 'File upload only supports the following filetypes:' + filetypes;
+  return cb(err);
+};
 
-    var filename = req.body.filename;
-    var extension = filename.split('.').slice(0).pop();
-    if (extension) {
-      extension = extension.toLowerCase();
+var upload = multer({ storage: storage, fileFilter: fileFilter }).single('file');
+
+module.exports.controller = function(app) {
+
+  function validate(req, res) {
+    if (!req.body.sizes) {
+        var err = new Error();
+        err.status = 400;
+        err.message = 'Missing \'sizes\' parameter';
+        return err;
     }
-    if (extension !== 'png' && extension !== 'jpg' && extension !== 'jpeg') {
-      var err = new Error();
-      err.status = 500;
-      err.message = 'Image must be in PNG or JPEG format';
-      return next(err);
+    var sizes;
+    try {
+      sizes = JSON.parse(req.body.sizes);
+    } catch (parseError) {
+        var err = new Error();
+        err.status = 400;
+        err.message = '\'sizes\' parameter is not valid JSON';
+        return err;
     }
+    if (!Array.isArray(sizes) || sizes.length > 5) {
+        var err = new Error();
+        err.status = 400;
+        err.message = '\'sizes\' must be an array of at most 5 elements';
+        return err;
+    }
+    if (!req.file) {
+        var err = new Error();
+        err.status = 400;
+        err.message = 'Missing \'file\' parameter';
+        return err;
+    }
+    return;
+  }
 
-    var newFieldName = 'new' + fieldNameCapital;
-
-    helper.requestEntity(req, function(err, promise) {
-      if (err) {
-        return next(err);
-      }
-      promise.then(function(entity) {
-        if (!entity) {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Entity not found';
-          return next(err);
-        }
-        if (entity[newFieldName]) {
-          cloudstorage.remove(entity[newFieldName]);
-        }
-        var newFieldPath = helper.remoteImagePath(req, extension);
-        entity[newFieldName] = newFieldPath;
-        entity.save();
-        cloudstorage.getSignedPolicy(newFieldPath, {
-            expires: Date.now() + 60 * 1000,
-            startsWith: ['$key', newFieldPath],
-            contentLengthRange: {
-              min: 0,
-              max: 2097152 // 2MB
-            }
-          },
-          function(err, body) {
-            console.log(body);
-            res.json(body);
-          });
-      });
-    });
-  };
-}
-
-exports.createImageFactory = createImageFactory;
-
-function confirmImageFactory(fieldName, sizes, helper) {
-  return function(req, res, next) {
-
-    var fieldNameCapital =
-      fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
-
-    var newFieldName = 'new' + fieldNameCapital;
-
-    helper.requestEntity(req, function(err, promise) {
-      if (err) {
-        return next(err);
-      }
-      promise.then(function(entity) {
-        if (!entity) {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Entity not found';
-          return next(err);
-        }
-        if (entity[newFieldName]) {
-          var oldFieldPath = entity[fieldName];
-          entity[fieldName] = entity[newFieldName];
-          entity[newFieldName] = null;
-          cloudstorage.remove(oldFieldPath);
-          for (var i = 0; i < sizes.length; i++) {
-            var sizeFieldName = sizes[i] + fieldNameCapital;
-            if (entity[sizeFieldName]) {
-              cloudstorage.remove(entity[sizeFieldName]);
-              entity[sizeFieldName] = null;
-            }
-          }
-          entity.save().then(function(entity) {
-            if (!entity) {
-              var err = new Error();
-              err.status = 500;
-              err.message = 'Failed saving entity';
-              return next(err);
-            }
-            res.send(entity);
-          });
-        } else {
+  function createScaledImage(imageId, localPath, width, height) {
+    var extension = path.extname(localPath);
+    var promise = new Promise(function(fullfill, reject) {
+      cdn.upload(imageModel.getCDNPath(imageId, extension, width, height), localPath, function(uploadError, filename) {
+        if (uploadError) {
           var err = new Error();
           err.status = 500;
-          err.message = 'No new image to confirm';
-          return next(err);
+          err.message = 'Failed to upload image';
+          err.details = uploadError;
+          reject(err);
+        } else {
+          model.ScaledImage.create({
+            ImageId: imageId,
+            width: width,
+            height: height,
+            url: imageModel.getCDNUrl(imageId, extension, width, height)
+          }).then(function(scaledImage) {
+            fullfill(scaledImage.url);
+          }).catch(function(databaseError) {
+            var err = new Error();
+            err.status = 500;
+            err.message = 'Failed to create scaled image in DB';
+            err.details = databaseError;
+            reject(err);
+          });
         }
       });
     });
-  };
-}
+    return promise;
+  }
 
-exports.confirmImageFactory = confirmImageFactory;
-
-function getImageFactory(fieldName, helper) {
-  return function(req, res, next) {
-
-    var fieldNameCapital =
-      fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
-
-    var newFieldName = 'new' + fieldNameCapital;
-    var size = req.params.size;
-
-    helper.requestEntity(req, function(err, promise) {
+  /**
+   * Uploads an image to the CDN. The image is also scaled to the provided sizes
+   *
+   * req.body.file      - The uploaded image
+   * req.body.sizes     - The sizes the provided image should be scaled to. An array as
+   *                      [{width=300, height=300}]
+   *
+   * Returns:
+   * On Success         - A JSON object containing the following fields:
+   *                      id      - signed URL to the requested image, valid for 60s
+   *                      sizes   - the sizes to which the image was successfully scaled. An array
+   *                                as [{width=300, height=300}]
+   * On Error           - A JSON object containing the following fields
+   *                      status  - HTTP status code
+   *                      message - Human readable error message
+   *                      details - Error details (optional)
+   *
+   * Test with CURL:
+   * curl -F "file=@<path-to-file>" -F "sizes=[{\"width\":<width>, \"height\":<height>}]" localhost:3000/images/upload
+   */
+  app.post('/images/upload/', function(req, res, next) {
+    return upload(req, res, function (err) {
+      err = err ? err : validate(req, res, next);
       if (err) {
+        // An error occurred when uploading
         return next(err);
       }
-      promise.then(function(entity) {
-        if (!entity) {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Entity not found';
-          return next(err);
-        }
-        var requestedField = size + fieldNameCapital;
-        var requestedSize = helper.imageSize(size);
-        if (entity[requestedField]) {
-          cloudstorage.createSignedUrl(entity[requestedField], "GET", 50,
-            function(err, url) {
-              if (err) {
-                //throw err;
-                err.status = 404;
-                err.message = "Image not found";
-                return next(err);
-              }
-              res.redirect(url);
-            }); /* Cloud storage signed url callback*/
-        } else {
-          // Should never happen
-          if (!entity[fieldName]) {
-            var err = new Error();
-            err.status = 404;
-            err.message = "Image not found";
-            return next(err);
-          }
-          var resizedRemotePath =
-            helper.resizedPath(
-              entity[fieldName],
-              requestedSize.width,
-              requestedSize.height);
-          helper.resizeInCDN(
-            entity[fieldName],
-            resizedRemotePath,
-            requestedSize.width,
-            requestedSize.height,
-            function(err) {
-              if (err) {
-                err.status = 500;
-                err.message = 'Failed resizing image';
-                return next(err);
-              }
-              entity[requestedField] = resizedRemotePath;
-              entity.save().then(function(entity) {
-                if (!entity) {
+      var extension = path.extname(req.file.path);
+      var uploadPath = req.file.path;
+      var sizes = JSON.parse(req.body.sizes);
+      var sizesProcessed = 0;
+      var uploadedSizes = [];
+      var uploadTasks = [];
+      model.Image.create({}).then(function(image) {
+        var originalImage = sharp(req.file.path);
+        originalImage.metadata().then(function(metadata) {
+          // upload original image
+          cdn.upload(imageModel.getCDNPath(image.id, extension, metadata.width, metadata.height), uploadPath, function(uploadError, filename) {
+            if (uploadError) {
+              image.destroy();
+              var err = new Error();
+              err.status = 500;
+              err.message = 'Failed to upload image';
+              err.details = uploadError;
+              return next(err);
+            } else {
+              model.ScaledImage.create({
+                ImageId: image.id,
+                width: metadata.width,
+                height: metadata.height,
+                url: imageModel.getCDNUrl(image.id, extension, metadata.width, metadata.height)
+              }).then(function(scaledImage) {
+                uploadedSizes.push({
+                  width: scaledImage.width,
+                  height: scaledImage.height
+                });
+                sizes.forEach(function(size) {
+                  uploadTasks.push(new Promise(function(fullfill, reject) {
+                    var width = size.width;
+                    var height = size.height;
+                    var resizedPath = imageModel.getTemporaryPath(image.id, extension, width, height);
+                    sharp(req.file.path).resize(width, height).toFile(resizedPath,
+                      function(err, info) {
+                        if (!err) {
+                          createScaledImage(image.id, resizedPath, width, height).then(function(scaledUrl) {
+                            fs.unlink(resizedPath);
+                            uploadedSizes.push({
+                              width: width,
+                              height: height
+                            });
+                            fullfill();
+                          }).catch(function(createdScaledError) {
+                            fs.unlink(resizedPath);
+                            fullfill();
+                          });
+                        } else {
+                          fs.unlink(resizedPath);
+                          fullfill();
+                        }
+                      });
+                    }));
+                  });
+                  Promise.all(uploadTasks).then(function(result) {
+                    res.send(JSON.stringify({
+                      id: image.id,
+                      sizes: uploadedSizes
+                    }));
+                  }).catch(function(scaleError) {
+                    image.destroy();
+                    fs.unlink(uploadPath);
+                    var err = new Error();
+                    err.status = 500;
+                    err.message = 'Failed to create scaled images';
+                    err.details = scaleError;
+                    return next(err);
+                  });
+                }).catch(function(databaseError) {
+                  image.destroy();
+                  fs.unlink(uploadPath);
+                  var err = new Error();
                   err.status = 500;
-                  err.message = 'Failed saving entity';
+                  err.message = 'Failed to create scaled image in DB';
+                  err.details = databaseError;
                   return next(err);
-                }
-                cloudstorage.createSignedUrl(resizedRemotePath, "GET", 50,
-                  function(err, url) {
-                    if (err) {
-                      //throw err;
-                      err.status = 404;
-                      err.message = "Entity not found";
-                      return next(err);
-                    }
-                    res.redirect(url);
-                  }); /* Cloud storage signed url callback*/
-              });
+                });
+              }
             });
-        }
+          }).catch(function(metadataError) {
+              image.destroy();
+              fs.unlink(uploadPath);
+              var err = new Error();
+              err.status = 500;
+              err.message = 'Failed to upload image';
+              err.details = metadataError;
+              return next(err);
+          });
+        }).catch(function(databaseError) {
+          fs.unlink(uploadPath);
+          var err = new Error();
+          err.status = 500;
+          err.message = 'Failed to create scaled image in DB';
+          err.details = databaseError;
+          return next(err);
+        });
       });
     });
-  };
-}
 
-exports.getImageFactory = getImageFactory;
+  /**
+   * Returns the requested image provided its id an minimum width.
+   * 
+   * req.params.id      - The id of the image to return
+   * req.params.width   - The width we are interested in. The returned image will at least be width
+   *
+   * Returns:
+   * On Success         - A JSON object containing the following fields:
+   *                      url     - signed URL to the requested image, valid for 60s
+   *                      width   - the width of the returned image
+   *                      height  - the height of the returned image
+   * On Error           - A JSON object containing the following fields
+   *                      status  - HTTP status code
+   *                      message - Human readable error message
+   *                      details - Error details (optional)
+   *
+   * Test with CURL:
+   * curl localhost:3000/images/5/200             
+   */
+  app.get('/images/:id/:width', function(req, res, next) {
+    req.checkParams('id', 'Invalid image id').notEmpty().isInt();
+    req.checkParams('width', 'Invalid image width').notEmpty().isInt();
+    req.getValidationResult().then(function(result) {
+      if (!result.isEmpty()) {
+        var err = new Error();
+        err.status = 400;
+        err.message = 'There have been validation errors';
+        err.details = result.array();
+        return next(err);
+      }
+      var id = req.params.id;
+      var width = req.params.width;
+      model.ScaledImage.findAll({
+        where: {
+          ImageId: id,
+          width: {
+            $gte: width
+          }
+        },
+        order: ['width']
+      }).then(function(images) {
+        if (!images || images.length == 0) {
+          var err = new Error();
+          err.status = 404;
+          err.message = 'Image not found';
+          return next(err);
+        }
+        cdn.createSignedUrl(images[0].url, 'GET', 60, function(signUrlError, signedUrl) {
+          if (signUrlError) {
+            var err = new Error();
+            err.status = 500;
+            err.message = 'Error signing URL';
+            err.details = signUrlError
+            return next(err);
+          }
+          return res.send({
+            url: signedUrl,
+            width: images[0].width,
+            height: images[0].height
+          });
+        });
+      }).catch(function(databaseError) {
+        var err = new Error();
+        err.status = 500;
+        err.message = 'Error fetching image';
+        err.details = databaseError;
+        return next(err);
+      });
+    });
+  });
+}

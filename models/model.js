@@ -156,6 +156,7 @@ Product.belongsToMany(Tag, {
 
 Product.belongsTo(Brand)
 Post.belongsTo(User)
+
 /**
  * Model: Converted Price
  */
@@ -167,6 +168,43 @@ Post.belongsToMany(Product,{
   through: PostProduct
 })
 
+/**
+ * Model: Image
+ */
+var Image = sequelizeObject.define('Image', {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  }
+});
+
+exports.Image = Image;
+
+var ScaledImage = sequelizeObject.define('ScaledImage', {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  width: Sequelize.INTEGER,
+  height: Sequelize.INTEGER,
+  url: Sequelize.STRING
+});
+
+exports.ScaledImage = ScaledImage;
+
+// Relationships part
+
+Image.hasMany(ScaledImage, {
+  foreignKey: {
+    name: 'ImageId',
+    allowNull: false
+  },
+  onDelete: 'CASCADE'
+});
+
+ScaledImage.belongsTo(Image);
 
 /**
  * Create database and default entities if do not exist

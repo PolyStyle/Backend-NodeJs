@@ -2,13 +2,15 @@
 
 var config = rootRequire('config/config');
 
-var gcloud = require('gcloud')({
-  keyFilename: config.GOOGLE_DEVELOPER_KEY_PATH,
+var gcloud = require('google-cloud');
+var gcs = gcloud.storage({
+  credentials: require(config.GOOGLE_DEVELOPER_KEY_PATH),
+  //keyFilename: config.GOOGLE_DEVELOPER_KEY_PATH,
   projectId: config.GOOGLE_PROJECT_NAME
 });
 
 var credentials = require(config.GOOGLE_DEVELOPER_KEY_PATH);
-var bucket = gcloud.storage().bucket(config.BUCKET_NAME);
+var bucket = gcs.bucket(config.BUCKET_NAME);
 
 var googleAccessEmail = credentials.client_email;
 
@@ -31,14 +33,15 @@ function getGoogleAccessEmail() {
 exports.getGoogleAccessEmail = getGoogleAccessEmail;
 
 /**
- * Function to create signed urls to google cloud storage
- * key: key of the object that we want to read (GET), write (PUT) or delete
- * (DELETE) method: HTTP method supported by the signed url (GET, PUT, DELETE)
- * timeToLive: is the time the signed url will last after being generated
- * (in seconds) callback: error first callback to handle the signed url
+ * Function to create signed URLs to Google Cloud Storage.
+ *
+ * url          - url to the object in the form gcs://bucket/path/to/object
+ * method       - HTTP method supported by the signed url (GET, PUT, DELETE)
+ * timeToLive   - the signed url will last after being generated (in seconds)
+ * callback     - a callback for the method call, in the form function(err, signedUrl)
  */
-function createSignedUrl(key, method, timeToLive, callback) {
-  if (!key) {
+function createSignedUrl(url, method, timeToLive, callback) {
+  if (!url) {
     var err = new Error();
     err.status = 404;
     err.message = 'File not found';
@@ -61,31 +64,19 @@ function createSignedUrl(key, method, timeToLive, callback) {
       options.action = 'read';
       break;
   }
+  var urlNoProtocol = url.replace('gs://', '');
+  var firstSlash = urlNoProtocol.indexOf('/');
+  var bucketName = urlNoProtocol.substr(0, firstSlash);
+  var fileName = urlNoProtocol.substr(firstSlash + 1); // "tocirah sneab"
 
-  var file = bucket.file(key);
+  var bucket = gcs.bucket(bucketName);
+  var file = bucket.file(fileName);
   options.expires = Date.now() + timeToLive * 1000;
   options.https = true;
   file.getSignedUrl(options, callback);
-
 }
 
 exports.createSignedUrl = createSignedUrl;
-
-function getSignedPolicy(key, options, callback) {
-  bucket.file(key).getSignedPolicy(options, function(err, policy) {
-    callback(err, {
-      Expires: new Date(options.expires).toISOString(),
-      action: getBucketUrl(),
-      method: 'POST',
-      key: key,
-      GoogleAccessId: getGoogleAccessEmail(),
-      policy: policy.base64,
-      signature: policy.signature
-    });
-  });
-}
-
-exports.getSignedPolicy = getSignedPolicy;
 
 /**
  * Uploads a file to Cloud Storage
@@ -93,8 +84,8 @@ exports.getSignedPolicy = getSignedPolicy;
 function upload(filename, filepath, callback) {
   bucket.upload(filepath, {
     destination: filename
-  }, function(err) {
-    callback(err, filename);
+  }, function(err, file) {
+    callback(err, file);
   });
 }
 
