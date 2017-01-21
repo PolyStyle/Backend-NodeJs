@@ -28,6 +28,7 @@
     "mkdirp": "*",
     "moment": "*",
     "morgan": "*",
+    "multer": "^1.2.1",
     "mysql": "*",
     "node-uuid": "*",
     "nodemon": "*",
