@@ -41,7 +41,13 @@ module.exports.controller = function(app) {
         where: {
           id: productId
         }, 
-        include: model.Brand
+        include: [{
+          model: model.Brand
+        },{
+          model: model.Tag
+        },{
+          model: model.Image
+        }]
       }).then(function(product) {
         if (product) {
             res.send(product);
@@ -111,11 +117,31 @@ module.exports.controller = function(app) {
   app.post('/products/',
     function(req, res) {
       var product = req.body;
-
       model.Product.create(
         product
-      ).then(function(product) { 
-        res.send(product);
+      ).then(function(product) {
+
+        var tagsIds = req.body.Tags.map((tag) => {
+          return tag.id;
+        });
+        Promise.all([
+          product.setTags(tagsIds)
+        ]).then(values => { 
+          model.Product.find({
+            where: {
+              id: product.id
+            }, 
+            include: [{
+              model: model.Brand
+            },{
+              model: model.Tag
+            },{
+              model: model.Image
+            }]
+          }).then(function(inflatedProduct) { 
+            res.send(inflatedProduct);
+          });
+        });
       });
     }
   );

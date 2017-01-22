@@ -115,7 +115,6 @@ var Product = sequelizeObject.define('Product', {
   },
   productCode: Sequelize.STRING,
   displayName: Sequelize.STRING,
-  picture: Sequelize.STRING,
 });
 exports.Product = Product;
 
@@ -131,42 +130,6 @@ var Tag = sequelizeObject.define('Tag', {
   displayName: Sequelize.STRING,
 });
 exports.Tag = Tag;
-
-// Relationships part
-
-User.hasMany(Post, {
-  foreignKey: {
-    name: 'UserId',
-    allowNull: false
-  },
-  onDelete: 'CASCADE'
-});
-
-Post.belongsToMany(Tag, {
-  through: 'PostTag',
-});
-
-Post.belongsToMany(Brand, {
-  through: 'PostBrand',
-});
-
-Product.belongsToMany(Tag, {
-  through: 'ProductTag',
-});
-
-Product.belongsTo(Brand)
-Post.belongsTo(User)
-
-/**
- * Model: Converted Price
- */
-var PostProduct = sequelizeObject.define('PostProduct', {
-  category: Sequelize.STRING,
-});
-
-Post.belongsToMany(Product,{
-  through: PostProduct
-})
 
 /**
  * Model: Image
@@ -205,6 +168,45 @@ Image.hasMany(ScaledImage, {
 });
 
 ScaledImage.belongsTo(Image);
+
+// Relationships part
+
+User.hasMany(Post, {
+  foreignKey: {
+    name: 'UserId',
+    allowNull: false
+  },
+  onDelete: 'CASCADE'
+});
+
+Post.belongsToMany(Tag, {
+  through: 'PostTag',
+});
+
+Post.belongsToMany(Brand, {
+  through: 'PostBrand',
+});
+
+Product.belongsToMany(Tag, {
+  through: 'ProductTag',
+});
+
+Product.belongsTo(Brand);
+Product.belongsTo(Image);
+Post.belongsTo(User)
+
+/**
+ * Model: Converted Price
+ */
+var PostProduct = sequelizeObject.define('PostProduct', {
+  category: Sequelize.STRING,
+});
+
+Post.belongsToMany(Product,{
+  through: PostProduct
+})
+
+
 
 /**
  * Create database and default entities if do not exist
