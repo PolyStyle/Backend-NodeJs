@@ -69,29 +69,95 @@ module.exports.controller = function(app) {
 
 
   /**
-   * POST /genres/
-   * Create new genre
+   * POST /posts/
+   * Create new posts
    */
   app.post('/posts/',
     function(req, res) {
       var post = req.body;
-
       model.Post.create({
-        picture: post.picture,
         description: post.description,
-        UserId: post.UserId
-      }).then(function(newPost) { 
-        console.log(post.tags)
-        newPost.setTags(post.tags || []).then(function(){
-          newPost.setBrands(post.brands || []).then(function(){
-            newPost.setProducts(post.products || []).then(function(){
-              res.send(newPost);
-            })
-          })
-        })
+        UserId: 1,
+        ImageId: post.ImageId,
+      }).then(function(newBrand) { 
+        var tagsIds = req.body.Tags.map((tag) => {
+          return tag.id;
+        });
+        var brandsIds = req.body.Brands.map((brand) => {
+          return brand.id;
+        });
+        var productsIds = req.body.Products.map((product) => {
+          return product.id;
+        });
+
+        Promise.all([
+          newBrand.setTags(tagsIds),
+          newBrand.setBrands(brandsIds),
+          newBrand.setProducts(productsIds)
+        ]).then(values => { 
+          res.send(newBrand);
+        });
       });
     }
   );
+
+
+  /**
+   * PUT /posts/:postId
+   * Update the post with id equals to postId
+   */
+  app.put('/posts/:postId',
+    function(req, res, next) {
+      console.log('node update post');
+      req.checkParams('postId', 'Invalid post id').notEmpty().isInt();
+      var errors = req.validationErrors();
+      if (errors) {
+        return throwValidationError(errors, next);
+      }
+      var postId = req.params.postId;
+      model.Post.find({
+        where: {
+          id: postId
+        }
+      }).then(function(post) {
+        if (!post) {
+          return res.status(400).send({
+            message: 'Brand not found'
+          });
+        }
+        console.log('-------');
+        console.log(req.body);
+        console.log('-------');
+        post.update(req.body).
+          then(function(post) {
+          if (post) {
+            // here update all the joined tables,
+            // sequelize has it's own setter and getters ready for the 
+            // model.
+            var tagsIds = req.body.Tags.map((tag) => {
+              return tag.id;
+            });
+            var brandsIds = req.body.Brands.map((brand) => {
+              return brand.id;
+            });
+            var productsIds = req.body.Products.map((product) => {
+              return product.id;
+            });
+
+            Promise.all([
+              post.setTags(tagsIds),
+              post.setBrands(brandsIds),
+              post.setProducts(productsIds)
+            ]).then(values => { 
+              res.send(post);
+            });
+          } 
+        }).catch(function(err) {
+          err.status = 500;
+          return next(err);
+        });
+      });
+    });
 }; /* End of genres controller */
 
 
