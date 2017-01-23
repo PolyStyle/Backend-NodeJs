@@ -194,6 +194,7 @@ Product.belongsToMany(Tag, {
 Product.belongsTo(Brand);
 Product.belongsTo(Image);
 Post.belongsTo(User)
+Post.belongsTo(Image)
 
 /**
  * Model: Converted Price
