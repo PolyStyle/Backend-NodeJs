@@ -260,9 +260,6 @@ module.exports.controller = function(app) {
       model.ScaledImage.findAll({
         where: {
           ImageId: id,
-          width: {
-            $gte: width
-          }
         },
         order: ['width']
       }).then(function(images) {
@@ -272,7 +269,14 @@ module.exports.controller = function(app) {
           err.message = 'Image not found';
           return next(err);
         }
-        cdn.createSignedUrl(images[0].url, 'GET', 60, function(signUrlError, signedUrl) {
+        // Falback in case there are no images bigger
+        let imageToUse = images[images.length-1];
+        for(var i = images.length-1; i >= 0 && images[i].width >= width; i--){
+          console.log(images[i].width,width);
+          imageToUse = images[i];
+        }
+
+        cdn.createSignedUrl(imageToUse.url, 'GET', 60, function(signUrlError, signedUrl) {
           if (signUrlError) {
             var err = new Error();
             err.status = 500;
@@ -282,8 +286,8 @@ module.exports.controller = function(app) {
           }
           return res.send({
             url: signedUrl,
-            width: images[0].width,
-            height: images[0].height
+            width: imageToUse.width,
+            height: imageToUse.height
           });
         });
       }).catch(function(databaseError) {

@@ -388,6 +388,57 @@ module.exports.controller = function(app) {
    * GET /users/search/
    * Look for a user by displayName
    */
+  app.get('/users',
+    function(req, res) {
+      model.User.findAll({
+        attributes: ['id','avatar','ImageId', 'displayName']
+      }).then(function(users) {
+        console.log(users);
+        res.send(users);
+      });
+    });
+
+  /**
+   * PUT /users/:userId
+   * Update the user with id equals to userId
+   */
+  app.put('/users/:userId',
+    function(req, res, next) {
+      req.checkParams('userId', 'Invalid post id').notEmpty().isInt();
+      var errors = req.validationErrors();
+      if (errors) {
+        return throwValidationError(errors, next);
+      }
+      var userId = req.params.userId;
+      model.User.find({
+        where: {
+          id: userId
+        }
+      }).then(function(user) {
+        if (!user) {
+          return res.status(400).send({
+            message: 'User not found'
+          });
+        }
+        console.log(req.body);
+
+        user.update(req.body).
+          then(function(user) {
+          if (user) {
+              res.send(user);
+          } 
+        }).catch(function(err) {
+          err.status = 500;
+          return next(err);
+        });
+      });
+    });
+
+
+  /**
+   * GET /users/search/
+   * Look for a user by displayName
+   */
   app.get('/users/search/:searchString',
     authenticationUtils.ensureAuthenticated,
     function(req, res) {
@@ -395,7 +446,7 @@ module.exports.controller = function(app) {
       model.User.findAll({
         where: {
           displayName: searchString
-        }
+        },
       }).then(function(users) {
         console.log(users);
         res.send(users);

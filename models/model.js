@@ -56,7 +56,8 @@ var User = sequelizeObject.define('User', {
     allowNull: false,
     defaultValue: true
   } // TODO Set to FALSE and ask for email confirmation.
-}, {
+});
+/*, {
   instanceMethods: {
     comparePassword: function(password) {
       return bcrypt.compareSync(password, this.password);
@@ -72,6 +73,8 @@ User.hook('beforeValidate', function(user) {
   user.password = bcrypt.hashSync(user.password, salt);
   return sequelizeObject.Promise.resolve(user);
 });
+
+*/
 exports.User = User;
 
 
@@ -193,8 +196,20 @@ Product.belongsToMany(Tag, {
 
 Product.belongsTo(Brand);
 Product.belongsTo(Image);
-Post.belongsTo(User)
-Post.belongsTo(Image)
+Post.belongsTo(User);
+Post.belongsTo(Image);
+User.belongsTo(Image);
+
+Brand.belongsTo(Image, {
+    foreignKey: 'BackgroundImageId',
+    as: 'BackgroundImage',
+});
+
+Brand.belongsTo(Image, {
+    foreignKey: 'AvatarImageId',
+    as: 'AvatarImage',
+});
+
 
 /**
  * Model: Converted Price
