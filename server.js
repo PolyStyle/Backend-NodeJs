@@ -29,6 +29,7 @@ var logger = require('morgan');
 var request = require('request');
 var multipart = require('connect-multiparty');
 var expressValidator = require('express-validator');
+var useragent = require('express-useragent');
 
 var config = rootRequire('config/config');
 var cloudstorage = rootRequire('libs/cdn/cloudstorage');
@@ -66,6 +67,8 @@ app.use(bodyParser.urlencoded({
   extended: true
 }));
 app.use(expressValidator());
+app.use(useragent.express());
+
 console.log('🔥: Server Started on ' + hostname +':'+ (process.env.PORT || PORT))
 app.use(function(req, res, next) {
   // Website you wish to allow to connect

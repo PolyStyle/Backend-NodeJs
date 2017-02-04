@@ -2,28 +2,255 @@
 
 var fs = require('fs-extra');
 var geoip = require('geoip-lite');
+var facebook = require('fb');
+var request = require('request');
+var jwt = require('jsonwebtoken');
 
 var fileUtils = rootRequire('utils/file-utils');
 var authenticationUtils = rootRequire('utils/authentication-utils');
 var model = rootRequire('models/model');
 var cloudstorage = rootRequire('libs/cdn/cloudstorage');
+var config = rootRequire('config/config');
+var imageModel = rootRequire('models/images');
+var cdn = rootRequire('libs/cdn/cloudstorage');
+var accessTokens = rootRequire('models/access-tokens');
+
+facebook.options({
+    appId:          config.FACEBOOK_APP_ID,
+    appSecret:      config.FACEBOOK_APP_SECRET,
+});
 
 module.exports.controller = function(app) {
+
+  /**
+   * Creates or logs a user in given a Facebook access token.
+   *
+   * req.body.accessToken      - The facebook access token
+   *
+   * Returns:
+   * On Success               - A JSON object containing the following fields:
+   *                            id                        - the id of the user
+   *                            email                     - the user's email
+   *                            firstName                 - first name of the user
+   *                            lastName                  - last name of the user
+   *                            gender                    - the gender of the user, if set
+   *                            avatar                    - the id of the user's avatar
+   *                            role                      - the role of the user in the system
+   *                            accessToken.accessToken   - a JWT token for the current user
+   *                            accessToken.refreshToken  - a token to refresh the JWT
+   *                            accessToken.expiresIn     - time in seconds before the JWT expires
+   *
+   * On Error                 - A JSON object containing the following fields
+   *                            status  - HTTP status code
+   *                            message - Human readable error message
+   *                            details - Error details (optional)
+   *
+   * Test with CURL:
+   * curl -H "Content-Type: application/json" -X POST -d "{\"accessToken\":\"FACEBOOK_ACCESS_TOKEN\"}" localhost:3000/users/login/facebook
+   */
+  app.post('/users/login/facebook', function(req, res, next) {
+    req.checkBody('accessToken', 'Missing FB access token').notEmpty();
+    req.getValidationResult().then(function(result) {
+      if (!result.isEmpty()) {
+        var err = new Error();
+        err.status = 400;
+        err.message = 'There have been validation errors';
+        err.details = result.array();
+        return next(err);
+      }
+      var accessToken = req.body.accessToken;
+      var parameters = {
+        access_token: accessToken,
+        fields: config.FACEBOOK_PROFILE_FIELDS
+      };
+      facebook.api('me', parameters, function (response) {
+        if(!response || response.error) {
+          console.log(!res ? 'error occurred' : response.error);
+          var err = new Error();
+          err.status = 404;
+          err.message = 'Failed to access FB profile';
+          err.details = response.err;
+          return next(err);
+        }
+        model.User.findOrCreate({
+          where: {
+            email: response.email
+          },
+          default: {
+            email: response.email,
+            firstName: response.first_name,
+            lastName: response.last_name,
+            gender: response.gender,
+            facebookToken: accessToken
+          }
+        }).spread(function(user, created) {
+          console.log(user);
+
+          // Move profile picture to CDN
+          if (response.picture && response.picture.data && response.picture.data.url) {
+            // We can afford to ignore exceptions for profile pic upload
+            imageModel.createImageFromUrl(response.picture.data.url, '.jpg', 50, 50).then(function(image) {
+              user.avatar = image.id;
+              user.save();
+            });
+          }
+
+          // Create our access token
+          accessTokens.createAccessToken(user.id, req.useragent).then(function(accessToken) {
+            var userToReturn = {
+              id: user.id,
+              email: user.email,
+              firstName: user.first_name,
+              lastName: user.last_name,
+              gender: user.gender,
+              avatar: user.avatar,
+              role: user.role,
+              accessToken: accessToken
+            };
+            return res.send(JSON.stringify(userToReturn));
+          }).catch(function(accessTokenError) {
+            var err = new Error();
+            err.status = 500;
+            err.message = 'Failed to create access token';
+            err.details = databaseError;
+            return next(err);
+          });
+        }).catch(function(databaseError) {
+          var err = new Error();
+          err.status = 500;
+          err.message = 'Failed to create user in DB';
+          err.details = databaseError;
+          return next(err);
+        });
+      });
+    });
+  });
+
+  /**
+   * Returns the profile of the authenticated user.
+   *
+   * req.headers.authorization     - The user's access token in the form "Bearer: ACCESS_TOKEN"
+   *
+   * Returns:
+   * On Success               - A JSON object containing the following fields:
+   *                            id            - the id of the user
+   *                            email         - the user's email
+   *                            firstName     - first name of the user
+   *                            lastName      - last name of the user
+   *                            gender        - the gender of the user, if set
+   *                            avatar        - the id of the user's avatar
+   *                            role          - the role of the user in the system
+   *
+   * On Error                 - A JSON object containing the following fields
+   *                            status  - HTTP status code
+   *                            message - Human readable error message
+   *                            details - Error details (optional)
+   *
+   * Test with CURL:
+   * curl -H "Authorization: Bearer ACCESS_TOKEN" localhost:3000/users/me
+   */
+  app.get('/users/me', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    model.User.findById(req.user).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'User was not found';
+        err.details = databaseError;
+        return next(err);
+      }
+      var userToReturn = {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        gender: user.gender,
+        avatar: user.avatar,
+        role: user.role
+      };
+      res.send(JSON.stringify(userToReturn));
+    }).catch(function(databseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to create user in DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+  /**
+   * Returns a new access token for the provided refresh token.
+   *
+   * req.body.refreshToken    - The user's access token in the form "Bearer: ACCESS_TOKEN"
+   *
+   * Returns:
+   * On Success               - A JSON object containing the following fields:
+   *                            accessToken   - a JWT token for the current user
+   *                            refreshToken  - a token to refresh the JWT
+   *                            expiresIn     - time in seconds before the JWT expires
+   *
+   * On Error                 - A JSON object containing the following fields
+   *                            status  - HTTP status code
+   *                            message - Human readable error message
+   *                            details - Error details (optional)
+   *
+   * Test with CURL:
+   * curl -H "Content-Type: application/json" -X POST -d "{\"refreshToken\":\"ACCESS_TOKEN\"}" localhost:3000/users/me/token
+   */
+  app.post('/users/me/token', function(req, res, next) {
+    req.checkBody('refreshToken', 'Missing refresh token').notEmpty();
+    req.getValidationResult().then(function(result) {
+      if (!result.isEmpty()) {
+        var err = new Error();
+        err.status = 400;
+        err.message = 'There have been validation errors';
+        err.details = result.array();
+        return next(err);
+      }
+      accessTokens.refreshAccessToken(req.body.refreshToken).then(function(accessToken) {
+        return res.send(JSON.stringify(accessToken));
+      }).catch(function(error) {
+        err.status = 400;
+        return next(err);
+      });
+    });
+  });
 
   /**
    * GET /me
    * Get authenticated user profile information
    */
-  app.get('/me', authenticationUtils.ensureAuthenticated, function(req, res) {
+  app.get('/me/cart',
+    authenticationUtils.ensureAuthenticated,
+    function(req, res) {
 
-    model.User.find({
-      where: {
-        id: req.user
-      }
-    }).then(function(user) {
-      res.send(user);
+      model.User.find({
+        where: {
+          id: req.user
+        }
+      }).then(function(user) {
+
+        user.getCartItems({
+          include: [{
+            model: model.Track,
+            include: [{
+              model: model.Artist,
+              as: 'Producer'
+            },{model: model.Release,
+              include: model.Label
+            }]
+          }, {
+            model: model.Release,
+            include: [{
+              model: model.Track
+            },{
+              model: model.Label
+            }]
+          }]
+        }).then(function(items) {
+          res.send(items);
+        });
+      });
     });
-  });
 
   /**
    * GET /me

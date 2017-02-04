@@ -30,34 +30,13 @@ var User = sequelizeObject.define('User', {
     primaryKey: true
   },
   email: Sequelize.STRING,
-  avatar: Sequelize.STRING,
-  newAvatar: Sequelize.STRING,
-  smallAvatar: Sequelize.STRING,
-  mediumAvatar: Sequelize.STRING,
-  largeAvatar: Sequelize.STRING,
-  fullSizeAvatar: Sequelize.STRING,
   password: Sequelize.STRING,
-  displayName: Sequelize.STRING,
-  facebook: Sequelize.STRING,
-  foursquare: Sequelize.STRING,
-  google: Sequelize.STRING,
-  github: Sequelize.STRING,
-  linkedin: Sequelize.STRING,
-  live: Sequelize.STRING,
-  yahoo: Sequelize.STRING,
-  twitter: Sequelize.STRING,
-  isAdmin: {
-    type: Sequelize.BOOLEAN,
-    allowNull: false,
-    defaultValue: false
-  },
-  isActive: {
-    type: Sequelize.BOOLEAN,
-    allowNull: false,
-    defaultValue: true
-  } // TODO Set to FALSE and ask for email confirmation.
-});
-/*, {
+  firstName: Sequelize.STRING,
+  lastName: Sequelize.STRING,
+  gender: Sequelize.STRING,
+  role: Sequelize.STRING,
+  facebookToken: Sequelize.STRING
+}, {
   instanceMethods: {
     comparePassword: function(password) {
       return bcrypt.compareSync(password, this.password);
@@ -66,17 +45,38 @@ var User = sequelizeObject.define('User', {
 });
 
 User.hook('beforeValidate', function(user) {
-  if (!user.avatar) {
-    user.avatar = 'default.png';
+  if (user.password) {
+    var salt = bcrypt.genSaltSync(10);
+    user.password = bcrypt.hashSync(user.password, salt);
+    return sequelizeObject.Promise.resolve(user);
   }
-  var salt = bcrypt.genSaltSync(10);
-  user.password = bcrypt.hashSync(user.password, salt);
-  return sequelizeObject.Promise.resolve(user);
 });
 
-*/
 exports.User = User;
 
+/**
+ * Model: AccessToken
+ */
+var AccessToken = sequelizeObject.define('AccessToken', {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  browser: Sequelize.STRING,
+  version: Sequelize.STRING,
+  os: Sequelize.STRING,
+  platform: Sequelize.STRING,
+  refreshToken: Sequelize.STRING
+});
+
+exports.AccessToken = AccessToken;
+
+AccessToken.hook('beforeValidate', function(token) {
+  var salt = bcrypt.genSaltSync(10);
+  token.refreshToken = bcrypt.hashSync(token.refreshToken, salt);
+  return sequelizeObject.Promise.resolve(token);
+});
 
 /*
 * POST: Model
@@ -133,6 +133,51 @@ var Tag = sequelizeObject.define('Tag', {
   displayName: Sequelize.STRING,
 });
 exports.Tag = Tag;
+
+// Relationships part
+
+User.hasMany(Post, {
+  foreignKey: {
+    name: 'UserId',
+    allowNull: false
+  },
+  onDelete: 'CASCADE'
+});
+
+User.hasMany(AccessToken, {
+  foreignKey: {
+    name: 'UserId',
+    allowNull: false
+  },
+  onDelete: 'CASCADE'
+});
+
+Post.belongsToMany(Tag, {
+  through: 'PostTag',
+});
+
+Post.belongsToMany(Brand, {
+  through: 'PostBrand',
+});
+
+Product.belongsToMany(Tag, {
+  through: 'ProductTag',
+});
+
+Product.belongsTo(Brand)
+Post.belongsTo(User)
+AccessToken.belongsTo(User)
+
+/**
+ * Model: Converted Price
+ */
+var PostProduct = sequelizeObject.define('PostProduct', {
+  category: Sequelize.STRING,
+});
+
+Post.belongsToMany(Product,{
+  through: PostProduct
+})
 
 /**
  * Model: Image

@@ -1,19 +1,19 @@
 'use strict';
 
-var jwt       = require('jwt-simple');
-var moment    = require('moment');
+var jwt = require('jsonwebtoken');
+var moment = require('moment');
 
-var model     = rootRequire('models/model');
-var config    = rootRequire('config/config');
+var model = rootRequire('models/model');
+var config = rootRequire('config/config');
 
 /**
- * Express middleware function. Ensures that the user is autheticated. This
- * method reads the authorization header where a JWT is expected to be found.
- * If no valid JWT is found a NOT_AUTHORIZED (401) response is returned.
+ * Express middleware function. Ensures that the user is autheticated. This method reads the
+ * authorization header where a JWT is expected to be found. If no valid JWT is found a
+ * NOT_AUTHORIZED (401) response is returned.
  *
- * @param {object} req - The request object
- * @param {object} res - The response object
- * @param {function} next - Middleware function to continue the call chain
+ * req      - The request object
+ * res      - The response object
+ * next     - Middleware function to continue the call chain
  */
 function ensureAuthenticated(req, res, next) {
   var err;
@@ -30,16 +30,18 @@ function ensureAuthenticated(req, res, next) {
     return next(err);    
   }
   var token = req.headers.authorization.split(' ')[1];
-  var payload = jwt.decode(token, config.TOKEN_SECRET);
-  if (payload.exp <= moment().unix()) {
-    err = new Error();
-    err.status = 401;
-    err.message = 'Token has expired';
-    return next(err);
-  }
-  req.user = payload.sub;
-  req.scopes = payload.scopes;
-  next();
+  jwt.verify(token, config.JWT_SECRET, { issuer: config.JWT_ISSUER }, function(jwtError, decoded) {
+    if (jwtError) {
+      err = new Error();
+      err.status = 401;
+      err.message = 'Invalid token';
+      err.details = jwtError
+      return next(err);
+    }
+    req.user = decoded.sub;
+    //req.scopes = payload.scopes;
+    next();
+  });
 }
 
 exports.ensureAuthenticated = ensureAuthenticated;

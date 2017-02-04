@@ -92,6 +92,15 @@ function upload(filename, filepath, callback) {
 exports.upload = upload;
 
 /**
+ * Create a write stream to GCS file.
+ */
+function writeStream(filepath) {
+  return bucket.file(filepath).createWriteStream();
+}
+
+exports.writeStream = writeStream;
+
+/**
  * Moves a file to a new localtion in cloud storage
  */
 function move(filename, newFilename, callback) {
