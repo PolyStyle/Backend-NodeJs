@@ -28,11 +28,7 @@
     "mkdirp": "*",
     "moment": "*",
     "morgan": "*",
-<<<<<<< HEAD
     "multer": "1.2.1",
-=======
-    "multer": "^1.2.1",
->>>>>>> origin/master
     "mysql": "*",
     "node-uuid": "*",
     "nodemon": "*",
