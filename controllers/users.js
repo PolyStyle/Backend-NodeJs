@@ -76,7 +76,7 @@ module.exports.controller = function(app) {
           where: {
             email: response.email
           },
-          default: {
+          defaults: {
             email: response.email,
             firstName: response.first_name,
             lastName: response.last_name,
