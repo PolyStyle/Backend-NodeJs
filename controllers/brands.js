@@ -138,11 +138,7 @@ module.exports.controller = function(app) {
     function(req, res) {
       var brand = req.body;
 
-      model.Brand.create({
-        displayName: brand.displayName,
-        picture: brand.picture,
-        headerBackground: brand.headerBackground
-      }).then(function(newBrand) { 
+      model.Brand.create(brand).then(function(newBrand) { 
         res.send(newBrand);
       });
     }

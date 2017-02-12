@@ -24,7 +24,11 @@ module.exports.controller = function(app) {
 
   app.get('/posts/', function(req, res) {
     model.Post.findAll({
-      include: inflatedObject
+      include: inflatedObject,
+      order: [
+      // Will escape username and validate DESC against a list of valid direction parameters
+        ['createdAt', 'DESC'],
+      ],
     }).then(function(posts) {
       res.send(posts);
     });

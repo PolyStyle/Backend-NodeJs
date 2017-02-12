@@ -103,8 +103,6 @@ var Brand = sequelizeObject.define('Brand', {
     primaryKey: true
   },
   displayName: Sequelize.STRING,
-  picture: Sequelize.STRING,
-  headerBackground: Sequelize.STRING,
 });
 exports.Brand = Brand;
 
