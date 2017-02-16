@@ -40,7 +40,7 @@
     "request": "*",
     "sendgrid": "*",
     "sequelize": "^3.6.0",
-    "sharp": "^0.17.0",
+    "sharp": "^0.17.2",
     "stripe": "^4.0.0",
     "uuid": "^3.0.1",
     "validator": "*",

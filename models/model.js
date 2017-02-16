@@ -20,7 +20,7 @@ exports.sequelize = function() {
 };
 
 
-/** 
+/**
  * Model: User
  */
 var User = sequelizeObject.define('User', {
@@ -81,7 +81,7 @@ AccessToken.hook('beforeValidate', function(token) {
 /*
 * POST: Model
 * A post contain an image (usually a picture with many item inside)
-*/ 
+*/
 
 var Post = sequelizeObject.define('Post', {
   id: {
@@ -118,6 +118,7 @@ var Product = sequelizeObject.define('Product', {
   itemCode: Sequelize.STRING,
   productCode: Sequelize.STRING,
   displayName: Sequelize.STRING,
+  sourceURL: Sequelize.STRING,
 });
 exports.Product = Product;
 
