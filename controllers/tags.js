@@ -28,6 +28,22 @@ module.exports.controller = function(app) {
     });
   });
 
+  
+
+  app.get('/tags/search/:queryString', function(req, res) {
+    var queryString = req.params.queryString;
+    model.Tag.findAll({
+      where: {
+        displayName: {
+          $like: queryString
+        }
+      }
+    }).then(function(tags) {
+      res.send(tags);
+    });
+  });
+
+
 
   /**
    * GET /tags/:tagId

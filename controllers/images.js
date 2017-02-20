@@ -127,6 +127,7 @@ module.exports.controller = function(app) {
       }
       var extension = path.extname(req.file.path);
       var uploadPath = req.file.path;
+      console.log(req.body);
       var sizes = JSON.parse(req.body.sizes);
       var sizesProcessed = 0;
       var uploadedSizes = [];
