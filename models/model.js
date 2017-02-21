@@ -114,6 +114,8 @@ var Product = sequelizeObject.define('Product', {
     autoIncrement: true,
     primaryKey: true
   },
+  sourceURL: Sequelize.STRING,
+  itemCode: Sequelize.STRING,
   productCode: Sequelize.STRING,
   displayName: Sequelize.STRING,
 });
