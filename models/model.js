@@ -257,16 +257,36 @@ Brand.belongsTo(Image, {
 });
 
 
-/**
- * Model: Converted Price
- */
-var PostProduct = sequelizeObject.define('PostProduct', {
-  category: Sequelize.STRING,
+/** Model for Following
+* A user can follow other users.
+* A user can follow brands.
+*/
+
+var BrandFollower = sequelizeObject.define('BrandFollower');
+exports.BrandFollower = BrandFollower;
+User.belongsToMany(Brand, {
+  through: BrandFollower,
 });
 
-Post.belongsToMany(Product,{
-  through: PostProduct
-})
+User.belongsToMany(User, {
+  as: 'Followers',
+  foreignKey: 'UserId',
+  through: 'UserFollower'
+});
+
+/** Model for Likes
+* A user can like a post
+* A user can like a product.
+*/
+Product.belongsToMany(User, {
+  through: 'ProductLikes'
+});
+Post.belongsToMany(User, {
+  through: 'PostLikes'
+});
+
+
+
 
 
 

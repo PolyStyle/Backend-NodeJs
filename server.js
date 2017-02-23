@@ -33,11 +33,11 @@ var useragent = require('express-useragent');
 
 var config = rootRequire('config/config');
 var cloudstorage = rootRequire('libs/cdn/cloudstorage');
-var fileUtils = rootRequire('utils/file-utils'); 
+var fileUtils = rootRequire('utils/file-utils');
 /*
  * Require controllers
  */
- 
+
 /*
  * Require models, here you define all the role relations between objects
  */
@@ -59,7 +59,7 @@ if (process.env.HOST == undefined) {
 
 
 
-// Declare the door if you have one 
+// Declare the door if you have one
 app.set('port', process.env.PORT || PORT);
 app.use(logger('dev'));
 app.use(bodyParser.json());
@@ -74,7 +74,7 @@ app.use(function(req, res, next) {
   // Website you wish to allow to connect
   // res.setHeader('Access-Control-Allow-Origin', 'http://' + hostname + '/' + (process.env.PORT || 8888));
   // Request methods you wish to allow
-  
+
   // Todo(mziccard): remove the allow all in prod.
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -93,7 +93,7 @@ if (app.get('env') === 'production') {
   });
 }
 
-/* ========================================================== 
+/* ==========================================================
 Use busboy middleware
 ============================================================ */
 app.use(busboy());
@@ -126,14 +126,15 @@ app.get('/', function(req, res, next) {
 
 var users = rootRequire('controllers/users.js').controller(app)
 
-// new 
+// new
 var posts = rootRequire('controllers/posts.js').controller(app)
 var products = rootRequire('controllers/products.js').controller(app)
 var brands = rootRequire('controllers/brands.js').controller(app)
 var tags = rootRequire('controllers/tags.js').controller(app)
 var images = rootRequire('controllers/images.js').controller(app)
+var follows = rootRequire('controllers/follows.js').controller(app)
 
-// Old legacy to be removed 
+// Old legacy to be removed
 var authenticators = rootRequire('controllers/authenticators.js').controller(app)
 
 
