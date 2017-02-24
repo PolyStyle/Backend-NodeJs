@@ -294,7 +294,7 @@ module.exports.controller = function(app) {
    * Get user's currency based on geolocalization
    */
   app.get('/me/cart/currency', function(req, res) {
-    // QUESTION:  shall we change CURRENCY at every connection ? 
+    // QUESTION:  shall we change CURRENCY at every connection ?
     // A User that lives in london, is traveling to US, which currency shall we
     // display? So far we geolocalize every request
     var ip = req.header('x-forwarded-for') || req.connection.remoteAddress;
@@ -360,10 +360,10 @@ module.exports.controller = function(app) {
           ReleaseId: releaseId
         }).then(function(createdItem) {
           // TODO (@ziccard): refactor the following code.
-          // Is it possible to have as the return object the Item 
+          // Is it possible to have as the return object the Item
           // with all the inclusion executed?
 
-          
+
           model.CartItem.find({
             where: {
               id: createdItem.id
@@ -417,13 +417,13 @@ module.exports.controller = function(app) {
           UserId: req.user,
           TrackId: trackId
         }).then(function(item) {
-          
+
 
           // TODO (@ziccard): refactor the following code.
-          // Is it possible to have as the return object the Item 
+          // Is it possible to have as the return object the Item
           // with all the inclusion executed?
 
-          
+
           model.CartItem.find({
             where: {
               id: item.id
@@ -522,7 +522,7 @@ module.exports.controller = function(app) {
       });
     });
 
- 
+
   /**
    * PUT /api/me
    * Update the authenticated user profile information
@@ -653,7 +653,7 @@ module.exports.controller = function(app) {
           then(function(user) {
           if (user) {
               res.send(user);
-          } 
+          }
         }).catch(function(err) {
           err.status = 500;
           return next(err);
@@ -717,7 +717,7 @@ module.exports.controller = function(app) {
    *  TODO: for now we just fetch all the PRODUCTS,
    * in the future we need to first see if the Brand has an associated user ID,
    * if that user ID has posted a post,
-   * and then 
+   * and then
    * @param {object} req - The request object
    * @param {object} res - The response object
    * @param {function} next - Middleware function to continue the call chain
@@ -733,13 +733,13 @@ module.exports.controller = function(app) {
       model.Post.findAll({
         where: {
           UserId: userId
-        }, 
+        },
         include: [
           {
             model: model.Tag
           },
           {
-            model: model.Brand, 
+            model: model.Brand,
           },{
             model: model.User
           },
@@ -764,6 +764,179 @@ module.exports.controller = function(app) {
         return next(err);
       });
     });
+
+
+  /**
+   * POST /users/:userId/follow
+   * Add BrandId to the list of brands followed by the user issuing the request
+   *
+   * req.headers.authorization     - The user's access token in the form "Bearer: ACCESS_TOKEN"
+   * req.params.brandId            - The Brand the user wants to follow
+   *
+   * Returns:
+   * On Success               - A JSON object containing the following fields:
+   *                            brandId                   - the id of the user
+   *                            userId                    - the id of the brand
+   *
+   * On Error                 - A JSON object containing the following fields
+   *                            status  - HTTP status code
+   *                            message - Human readable error message
+   *                            details - Error details (optional)
+   */
+   app.post('/users/:userId/follow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var followerId = req.user;
+    var userId = req.params.userId;
+    model.User.findById(followerId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to create association User follows Brand in DB';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      // TODO OPTIMIZE THIS, INSTEAD OF SEARCHING FIRST FOR THE EXISTENCE OF THE
+
+      model.UserFollower.findOrCreate({
+        where: {
+          UserId: userId,
+          FollowerId: followerId,
+        }
+      }).then(function(association){
+        res.send(JSON.stringify(association));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to create association User follows Brand in DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+   /**
+  * GET /users/following
+  * returns all the users folledwed by the the requester of the end point
+  * and :userId
+  */
+  app.get('/users/following', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var followerId = req.user;
+    model.User.findById(followerId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to authenticate the user';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      // TODO OPTIMIZE THIS, INSTEAD OF SEARCHING FIRST FOR THE EXISTENCE OF THE
+      model.UserFollower.find({
+        where: {
+          FollowerId: followerId,
+        }
+      }).then(function(associations){
+        res.send(JSON.stringify(associations));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to received the associations';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+  /**
+  * GET /users/:userId/follow
+  * returns the association if exists between the requester of the end point
+  * and :userId
+  */
+  app.get('/users/:userId/follow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var followerId = req.user;
+    var userId = req.params.userId;
+    model.User.findById(followerId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to create association User follows Brand in DB';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      // TODO OPTIMIZE THIS, INSTEAD OF SEARCHING FIRST FOR THE EXISTENCE OF THE
+
+      model.UserFollower.find({
+        where: {
+          UserId: userId,
+          FollowerId: followerId,
+        }
+      }).then(function(association){
+        res.send(JSON.stringify(association));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to create association User follows Brand in DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+   /**
+   * POST /brands/:brandId/unfollow
+   * Add BrandId to the list of brands followed by the user issuing the request
+   *
+   * req.headers.authorization     - The user's access token in the form "Bearer: ACCESS_TOKEN"
+   * req.params.brandId            - The Brand the user wants to follow
+   *
+   * Returns:
+   * On Success               - A JSON object containing the following fields:
+   *                            brandId                   - the id of the user
+   *                            userId                    - the id of the brand
+   *
+   * On Error                 - A JSON object containing the following fields
+   *                            status  - HTTP status code
+   *                            message - Human readable error message
+   *                            details - Error details (optional)
+   */
+   app.post('/users/:userId/unfollow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var followerId = req.user;
+    var userId = req.params.userId;
+    model.User.findById(userId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to create association User follows User in DB';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      // TODO OPTIMIZE THIS, INSTEAD OF SEARCHING FIRST FOR THE EXISTENCE OF THE
+      model.UserFollower.destroy({
+        where: {
+          UserId: userId,
+          FollowerId: followerId,
+        }
+      }).then(function(result){
+        res.send(JSON.stringify(result));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to remove the association User follows User in DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
 
 
 }; /* End of users controller */

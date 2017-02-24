@@ -268,10 +268,12 @@ User.belongsToMany(Brand, {
   through: BrandFollower,
 });
 
+var UserFollower = sequelizeObject.define('UserFollower');
+exports.UserFollower = UserFollower;
 User.belongsToMany(User, {
   as: 'Followers',
   foreignKey: 'UserId',
-  through: 'UserFollower'
+  through: UserFollower
 });
 
 /** Model for Likes

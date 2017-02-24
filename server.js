@@ -132,7 +132,6 @@ var products = rootRequire('controllers/products.js').controller(app)
 var brands = rootRequire('controllers/brands.js').controller(app)
 var tags = rootRequire('controllers/tags.js').controller(app)
 var images = rootRequire('controllers/images.js').controller(app)
-var follows = rootRequire('controllers/follows.js').controller(app)
 
 // Old legacy to be removed
 var authenticators = rootRequire('controllers/authenticators.js').controller(app)
