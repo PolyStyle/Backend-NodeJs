@@ -105,6 +105,8 @@ module.exports.controller = function(app) {
               gender: user.gender,
               avatar: user.avatar,
               role: user.role,
+              createdAt: user.createdAt,
+              updatedAt: user.updatedAt,
               accessToken: accessToken
             };
             return res.send(JSON.stringify(userToReturn));
@@ -165,7 +167,9 @@ module.exports.controller = function(app) {
         lastName: user.last_name,
         gender: user.gender,
         avatar: user.avatar,
-        role: user.role
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
       };
       res.send(JSON.stringify(userToReturn));
     }).catch(function(databseError) {
@@ -766,55 +770,6 @@ module.exports.controller = function(app) {
     });
 
 
-  /**
-   * POST /users/:userId/follow
-   * Add BrandId to the list of brands followed by the user issuing the request
-   *
-   * req.headers.authorization     - The user's access token in the form "Bearer: ACCESS_TOKEN"
-   * req.params.brandId            - The Brand the user wants to follow
-   *
-   * Returns:
-   * On Success               - A JSON object containing the following fields:
-   *                            brandId                   - the id of the user
-   *                            userId                    - the id of the brand
-   *
-   * On Error                 - A JSON object containing the following fields
-   *                            status  - HTTP status code
-   *                            message - Human readable error message
-   *                            details - Error details (optional)
-   */
-   app.post('/users/:userId/follow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
-    var followerId = req.user;
-    var userId = req.params.userId;
-    model.User.findById(followerId).then(function(user) {
-      if (!user) {
-        var err = new Error();
-        err.status = 404;
-        err.message = 'Failed to create association User follows Brand in DB';
-        err.details = databaseError;
-        return next(err);
-      }
-
-      // TODO OPTIMIZE THIS, INSTEAD OF SEARCHING FIRST FOR THE EXISTENCE OF THE
-
-      model.UserFollower.findOrCreate({
-        where: {
-          UserId: userId,
-          FollowerId: followerId,
-        }
-      }).then(function(association){
-        res.send(JSON.stringify(association));
-      }).catch(function(err){
-        return next(err);
-      });
-    }).catch(function(databaseError) {
-      var err = new Error();
-      err.status = 500;
-      err.message = 'Failed to create association User follows Brand in DB';
-      err.details = databaseError;
-      return next(err);
-    });
-  });
 
    /**
   * GET /users/following
@@ -833,7 +788,7 @@ module.exports.controller = function(app) {
       }
 
       // TODO OPTIMIZE THIS, INSTEAD OF SEARCHING FIRST FOR THE EXISTENCE OF THE
-      model.UserFollower.find({
+      model.UserFollower.findAll({
         where: {
           FollowerId: followerId,
         }
@@ -889,6 +844,57 @@ module.exports.controller = function(app) {
     });
   });
 
+
+  /**
+   * POST /users/:userId/follow
+   * Add BrandId to the list of brands followed by the user issuing the request
+   *
+   * req.headers.authorization     - The user's access token in the form "Bearer: ACCESS_TOKEN"
+   * req.params.brandId            - The Brand the user wants to follow
+   *
+   * Returns:
+   * On Success               - A JSON object containing the following fields:
+   *                            brandId                   - the id of the user
+   *                            userId                    - the id of the brand
+   *
+   * On Error                 - A JSON object containing the following fields
+   *                            status  - HTTP status code
+   *                            message - Human readable error message
+   *                            details - Error details (optional)
+   */
+   app.post('/users/:userId/follow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var followerId = req.user;
+    var userId = req.params.userId;
+    model.User.findById(followerId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to create association User follows Brand in DB';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      // TODO OPTIMIZE THIS, INSTEAD OF SEARCHING FIRST FOR THE EXISTENCE OF THE
+
+      model.UserFollower.findOrCreate({
+        where: {
+          UserId: userId,
+          FollowerId: followerId,
+        }
+      }).then(function(association){
+        res.send(JSON.stringify(association));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to create association User follows Brand in DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+   
    /**
    * POST /brands/:brandId/unfollow
    * Add BrandId to the list of brands followed by the user issuing the request
