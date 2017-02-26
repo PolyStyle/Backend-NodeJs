@@ -8,7 +8,7 @@ var inflatedObject = [
         model: model.Tag
       },
       {
-        model: model.Brand, 
+        model: model.Brand,
       },{
         model: model.User
       },
@@ -24,7 +24,6 @@ module.exports.controller = function(app) {
 
   app.get('/posts/', function(req, res) {
     model.Post.findAll({
-      include: inflatedObject,
       order: [
       // Will escape username and validate DESC against a list of valid direction parameters
         ['createdAt', 'DESC'],
@@ -83,7 +82,7 @@ module.exports.controller = function(app) {
         description: post.description,
         UserId: 1,
         ImageId: post.ImageId,
-      }).then(function(newBrand) { 
+      }).then(function(newBrand) {
         var tagsIds = req.body.Tags.map((tag) => {
           return tag.id;
         });
@@ -98,7 +97,7 @@ module.exports.controller = function(app) {
           newBrand.setTags(tagsIds),
           newBrand.setBrands(brandsIds),
           newBrand.setProducts(productsIds)
-        ]).then(values => { 
+        ]).then(values => {
           res.send(newBrand);
         });
       });
@@ -136,7 +135,7 @@ module.exports.controller = function(app) {
           then(function(post) {
           if (post) {
             // here update all the joined tables,
-            // sequelize has it's own setter and getters ready for the 
+            // sequelize has it's own setter and getters ready for the
             // model.
             var tagsIds = req.body.Tags.map((tag) => {
               return tag.id;
@@ -152,29 +151,130 @@ module.exports.controller = function(app) {
               post.setTags(tagsIds),
               post.setBrands(brandsIds),
               post.setProducts(productsIds)
-            ]).then(values => { 
+            ]).then(values => {
               res.send(post);
             });
-          } 
+          }
         }).catch(function(err) {
           err.status = 500;
           return next(err);
         });
       });
     });
+
+
+
+/**
+  * GET /posts/:postId/like
+  * returns if the user requesting this endpoint liked the post with id postId
+  */
+  app.get('/posts/:postId/like', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var userId = req.user;
+    var postId = req.params.postId;
+    model.User.findById(userId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to find user in the db';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      model.PostLike.find({
+        where: {
+          UserId: userId,
+          PostId: postId,
+        }
+      }).then(function(association){
+        res.send(JSON.stringify(association));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to retrieve UserPost Likes association from DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+
+  /**
+   * POST /posts/:postId/like
+   */
+
+   app.post('/posts/:postId/like', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var userId = req.user;
+    var postId = req.params.postId;
+    model.User.findById(userId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to create association User follows Brand in DB';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      model.PostLike.findOrCreate({
+        where: {
+          UserId: userId,
+          PostId: postId,
+        }
+      }).then(function(association){
+        res.send(JSON.stringify(association));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to create UserPost Likes association from DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+   /**
+   * POST /posts/:postId/unlike
+   */
+   app.post('/posts/:postId/unlike', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var userId = req.user;
+    var postId = req.params.postId;
+    model.User.findById(userId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to create association User follows User in DB';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      model.PostLike.destroy({
+        where: {
+          UserId: userId,
+          PostId: postId,
+        }
+      }).then(function(result){
+        res.send(JSON.stringify(result));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to remove the association User Post from DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+
+
+
+
+
+
+
 }; /* End of genres controller */
 
-
-/* 
-
-{
-  picture: 'https://s-media-cache-ak0.pinimg.com/474x/1a/eb/2e/1aeb2eff3242f5884a8a23e4bdb7946f.jpg',
-  description: 'Marcos favorite outfit',
-  tags: [1,2],
-  UserId: 1
-}
-
-
-
-
-*/

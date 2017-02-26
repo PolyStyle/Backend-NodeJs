@@ -89,7 +89,6 @@ var Post = sequelizeObject.define('Post', {
     autoIncrement: true,
     primaryKey: true
   },
-  picture: Sequelize.STRING,
   description: Sequelize.STRING,
 });
 exports.Post = Post;
@@ -280,11 +279,15 @@ User.belongsToMany(User, {
 * A user can like a post
 * A user can like a product.
 */
+var ProductLike = sequelizeObject.define('ProductLike');
+exports.ProductLike = ProductLike;
 Product.belongsToMany(User, {
-  through: 'ProductLikes'
+  through: ProductLike
 });
+var PostLike = sequelizeObject.define('PostLike');
+exports.PostLike = PostLike;
 Post.belongsToMany(User, {
-  through: 'PostLikes'
+  through: PostLike
 });
 
 
