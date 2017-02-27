@@ -40,7 +40,7 @@ module.exports.controller = function(app) {
       model.Product.find({
         where: {
           id: productId
-        }, 
+        },
         include: [{
           model: model.Brand
         },{
@@ -96,7 +96,7 @@ module.exports.controller = function(app) {
             }).then(function(productsList){
               // TODO add condition if productsList is undefined
               res.send(productsList);
-            })  
+            })
         } else {
           var err = new Error();
           err.status = 404;
@@ -126,11 +126,11 @@ module.exports.controller = function(app) {
         });
         Promise.all([
           product.setTags(tagsIds)
-        ]).then(values => { 
+        ]).then(values => {
           model.Product.find({
             where: {
               id: product.id
-            }, 
+            },
             include: [{
               model: model.Brand
             },{
@@ -138,7 +138,7 @@ module.exports.controller = function(app) {
             },{
               model: model.Image
             }]
-          }).then(function(inflatedProduct) { 
+          }).then(function(inflatedProduct) {
             res.send(inflatedProduct);
           });
         });
@@ -176,7 +176,7 @@ module.exports.controller = function(app) {
           then(function(product) {
           if (product) {
             // here update all the joined tables,
-            // sequelize has it's own setter and getters ready for the 
+            // sequelize has it's own setter and getters ready for the
             // model.
             var tagsIds = req.body.Tags.map((tag) => {
               return tag.id;
@@ -187,10 +187,10 @@ module.exports.controller = function(app) {
             Promise.all([
               product.setTags(tagsIds),
               product.setBrand(brandId)
-            ]).then(values => { 
+            ]).then(values => {
               res.send(product);
             });
-          } 
+          }
         }).catch(function(err) {
           err.status = 500;
           return next(err);
@@ -210,25 +210,118 @@ module.exports.controller = function(app) {
       model.Product.create({
         displayName: product.displayName,
         BrandId: product.BrandId
-      }).then(function(newProduct) { 
+      }).then(function(newProduct) {
         res.send(newProduct);
       });
     }
   );
 
+/**
+  * GET /posts/:postId/like
+  * returns if the user requesting this endpoint liked the post with id postId
+  */
+  app.get('/products/:productId/like', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var userId = req.user;
+    var productId = req.params.productId;
+    model.User.findById(userId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to find user in the db';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      model.ProductLike.find({
+        where: {
+          UserId: userId,
+          ProductId: productId,
+        }
+      }).then(function(association){
+        res.send(JSON.stringify(association));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to retrieve UserPost Likes association from DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+
+  /**
+   * POST /posts/:postId/like
+   */
+
+   app.post('/products/:productId/like', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var userId = req.user;
+    var productId = req.params.productId;
+    model.User.findById(userId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to create association User follows Brand in DB';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      model.ProductLike.findOrCreate({
+        where: {
+          UserId: userId,
+          ProductId: productId,
+        }
+      }).then(function(association){
+        res.send(JSON.stringify(association));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to create UserPost Likes association from DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+   /**
+   * POST /posts/:postId/unlike
+   */
+   app.post('/products/:productId/unlike', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+    var userId = req.user;
+    var productId = req.params.productId;
+    model.User.findById(userId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to create association User follows User in DB';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      model.ProductLike.destroy({
+        where: {
+          UserId: userId,
+          ProductId: productId,
+        }
+      }).then(function(result){
+        res.send(JSON.stringify(result));
+      }).catch(function(err){
+        return next(err);
+      });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to remove the association User Post from DB';
+      err.details = databaseError;
+      return next(err);
+    });
+  });
+
+
 
 }; /* End of genres controller */
 
-
-/* 
-
-{
-  displayName: 'Nike Shoes',
-  picture:  'https://s-media-cache-ak0.pinimg.com/474x/51/80/00/5180009b176132bba9729c0f910b4bd7.jpg',
-  BrandId: 1
-}
-
-
-
-
-*/
