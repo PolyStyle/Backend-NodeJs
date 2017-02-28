@@ -208,7 +208,6 @@ module.exports.controller = function(app) {
     function(req, res) {
       var product = req.body;
       model.Product.create({
-        picture: product.picture,
         displayName: product.displayName,
         BrandId: product.BrandId
       }).then(function(newProduct) { 
