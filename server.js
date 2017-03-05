@@ -151,17 +151,19 @@ if (app.get('env') === 'development') {
       status: err.status,
       message: err.message,
       validation: err.validation,
-      error: err
+      reason: err.reason,
+      details: err.details
     });
   });
 } else {
   app.use(function(err, req, res, next) {
     res.status(err.status || 500);
     res.json({
-      status: "ERROR",
+      status: err.status,
       message: err.message,
       validation: err.validation,
-      error: {}
+      reason: err.reason,
+      details: err.details
     });
   });
 

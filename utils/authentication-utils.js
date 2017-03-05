@@ -5,6 +5,7 @@ var moment = require('moment');
 
 var model = rootRequire('models/model');
 var config = rootRequire('config/config');
+var reasons = rootRequire('errors/reasons');
 
 /**
  * Express middleware function. Ensures that the user is autheticated. This method reads the
@@ -35,6 +36,9 @@ function ensureAuthenticated(req, res, next) {
       err = new Error();
       err.status = 401;
       err.message = 'Invalid token';
+      if (jwtError.name === 'TokenExpiredError') {
+        err.reason = reasons.TOKEN_EXPIRED
+      }
       err.details = jwtError
       return next(err);
     }
