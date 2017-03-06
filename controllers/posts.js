@@ -24,8 +24,8 @@ module.exports.controller = function(app) {
 
   app.get('/posts/', function(req, res) {
     model.Post.findAll({
-      include: inflatedObject,
       order: [
+        include: inflatedObject,
       // Will escape username and validate DESC against a list of valid direction parameters
         ['createdAt', 'DESC'],
       ],
@@ -34,9 +34,10 @@ module.exports.controller = function(app) {
     });
   });
 
+
 /* Get the feed version of posts, this in th future can be customized for each user */
 
-
+module.exports.controller = function(app) {
   app.get('/posts/feed', function(req, res) {
     model.Post.findAll({
       order: [
