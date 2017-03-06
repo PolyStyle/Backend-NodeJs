@@ -14,12 +14,12 @@ var jwt = require('jsonwebtoken');
  * userAgent.os							- The OS from which the request is coming
  * userAgent.platform				- The platform from which the request is coming
  */
-function createAccessToken(user, userAgent) {
+function createAccessToken(userId, userAgent) {
 	return new Promise(function(fullfill, reject) {
 		var refreshToken = uuidV4();
 		console.log(refreshToken);
 		model.AccessToken.create({
-			UserId: user.id,
+			UserId: userId,
 	  	browser: userAgent.browser,
 	  	version: userAgent.version,
 	  	os: userAgent.os,
@@ -32,12 +32,12 @@ function createAccessToken(user, userAgent) {
 		    // audience: "", // who will use this token
 		    issuer: config.JWT_ISSUER,
 		    jwtid: accessToken.id.toString(), // the id of the token, might be useful for blacklisting
-		    subject: user.id.toString(),
+		    subject: userId.toString(),
 		  };
-		  var tokenUser = {
-				id: user.id
+		  var user = {
+		  	id: userId
 		  };
-		  var jwtToken = jwt.sign(tokenUser, config.JWT_SECRET, jwtOptions);
+		  var jwtToken = jwt.sign(user, config.JWT_SECRET, jwtOptions);
 		  var returnedAccessToken = {
 		  	accessToken: jwtToken,
 		  	refreshToken: refreshToken,
