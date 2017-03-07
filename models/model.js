@@ -290,9 +290,39 @@ Post.belongsToMany(User, {
   through: PostLike
 });
 
+/** Model for Collections
+* A user can have multiple collections. A collection can be own only by a user
+* A collection can have multiple prodcuts
+* A collection can have multiple posts inside.
+* A collection have a display name
+*/
 
+var Collection = sequelizeObject.define('Collection', {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  displayName: Sequelize.STRING,
+});
+exports.Collection = Collection;
+User.hasMany(Collection, {
+  foreignKey: {
+    name: 'UserId',
+    allowNull: false
+  },
+  onDelete: 'CASCADE'
+});
 
+var CollectionPost = sequelizeObject.define('CollectionPost');
+Post.belongsToMany(Collection, {
+  through: CollectionPost
+});
 
+var CollectionProduct = sequelizeObject.define('CollectionProduct');
+Product.belongsToMany(Collection, {
+  through: CollectionProduct
+});
 
 
 /**
