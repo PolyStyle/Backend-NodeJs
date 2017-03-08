@@ -18,7 +18,18 @@ module.exports.controller = function(app) {
   /  POST /collections/:collectionId/removeProduct/
   */
 
+var includeLastFiveItems = [
+      {
+        model: model.Product,
 
+        attributes: ['id','ImageId'],
+      },
+      {
+        model: model.Post,
+
+        attributes: ['id','ImageId'],
+      }
+  ];
 
   /* Get all the collection of the user userID */
   app.get('/users/:userId/collections', function(req, res) {
@@ -29,11 +40,12 @@ module.exports.controller = function(app) {
       }
     var userId = req.params.userId;
     model.Collection.findAll({
+      include: includeLastFiveItems,
       where: {
        UserId: userId,
       }
     }).then(function(collections) {
-      res.send(collections);
+      res.send(collections );
     });
   });
 
@@ -63,11 +75,13 @@ module.exports.controller = function(app) {
   app.post('/collections/', authenticationUtils.ensureAuthenticated, function(req, res, next) {
    var userId = req.user;
       var collection = req.body;
+      console.log(req.body);
+      console.log(collection);
       model.Collection.create({
       displayName: collection.displayName,
       UserId: userId,
     }).then(function(newCollection) {
-        res.send(newBrand);
+        res.send(newCollection);
     });
   });
 
@@ -78,9 +92,10 @@ module.exports.controller = function(app) {
    */
 
    app.post('/collections/:collectionId/addPost', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+
     var userId = req.user;
     var collectionId = req.params.collectionId;
-    var post = req.body.post;
+    var post = req.body;
     model.User.findById(userId).then(function(user) {
       if (!user) {
         var err = new Error();

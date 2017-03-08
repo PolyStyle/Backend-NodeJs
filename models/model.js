@@ -315,15 +315,15 @@ User.hasMany(Collection, {
 });
 
 var CollectionPost = sequelizeObject.define('CollectionPost');
-Post.belongsToMany(Collection, {
+Collection.belongsToMany(Post, {
   through: CollectionPost
 });
-
+exports.CollectionPost = CollectionPost;
 var CollectionProduct = sequelizeObject.define('CollectionProduct');
-Product.belongsToMany(Collection, {
+Collection.belongsToMany(Product, {
   through: CollectionProduct
 });
-
+exports.CollectionProduct = CollectionProduct;
 
 /**
  * Create database and default entities if do not exist
