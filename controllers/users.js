@@ -96,7 +96,7 @@ module.exports.controller = function(app) {
           }
 
           // Create our access token
-          accessTokens.createAccessToken(user.id, req.useragent).then(function(accessToken) {
+          accessTokens.createAccessToken(user, req.useragent).then(function(accessToken) {
             var userToReturn = {
               id: user.id,
               email: user.email,
