@@ -1,7 +1,8 @@
 'use strict';
 
-var authenticationUtils = rootRequire('utils/authentication-utils');
+var authentication = rootRequire('middleware/authentication');
 var model = rootRequire('models/model');
+var controllerUtils = rootRequire('controllers/utils');
 
 var inflatedObject = [
       {
@@ -56,27 +57,28 @@ module.exports.controller = function(app) {
   app.get('/tags/:tagId',
     function(req, res, next) {
       req.checkParams('tagId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var tagId = req.params.tagId;
-      model.Tag.find({
-        where: {
-          id: tagId
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(tag) {
-        if (tag) {
-            res.send(tag);
-        } else {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Requested tag does not exist';
+        var tagId = req.params.tagId;
+        model.Tag.find({
+          where: {
+            id: tagId
+          }
+        }).then(function(tag) {
+          if (tag) {
+              res.send(tag);
+          } else {
+            var err = new Error();
+            err.status = 404;
+            err.message = 'Requested tag does not exist';
+            return next(err);
+          }
+        }).catch(function(err) {
+          err.status = 500;
           return next(err);
-        }
-      }).catch(function(err) {
-        err.status = 500;
-        return next(err);
+        });
       });
     });
 
@@ -95,43 +97,44 @@ module.exports.controller = function(app) {
   app.get('/tags/stream/:tagId',
     function(req, res, next) {
       req.checkParams('tagId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var tagId = req.params.tagId;
-      model.Post.findAll({
-        include: [
-          {
-            model: model.Tag,
-            where: {
-              id: tagId
-            }, 
-          },
-          {
-            model: model.Brand, 
-          },{
-            model: model.User
-          },
-          {
-            model: model.Product,
-            include: [{
-              model: model.Brand
-            }]
-          }
-        ]
-      }).then(function(tagStream) {
-        if (tagStream) {
-            res.send(tagStream);
-        } else {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Requested tag does not exist';
-          return next(err);
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).catch(function(err) {
-        err.status = 500;
-        return next(err);
+        var tagId = req.params.tagId;
+        model.Post.findAll({
+          include: [
+            {
+              model: model.Tag,
+              where: {
+                id: tagId
+              }, 
+            },
+            {
+              model: model.Brand, 
+            },{
+              model: model.User
+            },
+            {
+              model: model.Product,
+              include: [{
+                model: model.Brand
+              }]
+            }
+          ]
+        }).then(function(tagStream) {
+          if (tagStream) {
+              res.send(tagStream);
+          } else {
+            var err = new Error();
+            err.status = 404;
+            err.message = 'Requested tag does not exist';
+            return next(err);
+          }
+        }).catch(function(err) {
+          err.status = 500;
+          return next(err);
+        });
       });
     });
 
@@ -159,27 +162,28 @@ module.exports.controller = function(app) {
   app.put('/tags/:tagId',
     function(req, res, next) {
       req.checkParams('tagId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var tagId = req.params.tagId;
-      model.Tag.find({
-        where: {
-          id: tagId
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(tag) {
-        if (!tag) {
-          return res.status(400).send({
-            message: 'Tag not found'
-          });
-        }
-        tag.displayName = req.body.displayName || tag.displayName;
-        tag.save(function(err) {
-          if (err) {
-            return next(err);
+        var tagId = req.params.tagId;
+        model.Tag.find({
+          where: {
+            id: tagId
           }
-          res.status(200).end();
+        }).then(function(tag) {
+          if (!tag) {
+            return res.status(400).send({
+              message: 'Tag not found'
+            });
+          }
+          tag.displayName = req.body.displayName || tag.displayName;
+          tag.save(function(err) {
+            if (err) {
+              return next(err);
+            }
+            res.status(200).end();
+          });
         });
       });
     });
@@ -202,19 +206,5 @@ module.exports.controller = function(app) {
         });
       });
     });
-}; /* End of tags controller */
 
-
-/* 
-
-{
-  picture: 'https://s-media-cache-ak0.pinimg.com/474x/1a/eb/2e/1aeb2eff3242f5884a8a23e4bdb7946f.jpg',
-  description: 'Marcos favorite outfit',
-  tags: [1,2],
-  UserId: 1
-}
-
-
-
-
-*/
+};

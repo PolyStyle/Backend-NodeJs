@@ -1,9 +1,8 @@
 'use strict';
 
-var authenticationUtils = rootRequire('utils/authentication-utils');
+var authentication = rootRequire('middleware/authentication');
 var model = rootRequire('models/model');
-
-
+var controllerUtils = rootRequire('controllers/utils');
 
 module.exports.controller = function(app) {
   /* The endpoint in this file
@@ -34,45 +33,46 @@ var includeLastFiveItems = [
   /* Get all the collection of the user userID */
   app.get('/users/:userId/collections', function(req, res) {
     req.checkParams('userId', 'Invalid user id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
+    req.getValidationResult().then(function(result) {
+      if (result && !result.isEmpty()) {
+        return controllerUtils.throwValidationError(result, next);
       }
-    var userId = req.params.userId;
-    model.Collection.findAll({
-      include: includeLastFiveItems,
-      where: {
-       UserId: userId,
-      }
-    }).then(function(collections) {
-      res.send(collections );
+      var userId = req.params.userId;
+      model.Collection.findAll({
+        include: includeLastFiveItems,
+        where: {
+         UserId: userId,
+        }
+      }).then(function(collections) {
+        res.send(collections );
+      });
     });
   });
 
   /* Get the collection with collectionId  */
   app.get('/collections/:collectionId', function(req, res) {
     req.checkParams('collectionId', 'Invalid user id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
+    req.getValidationResult().then(function(result) {
+      if (result && !result.isEmpty()) {
+        return controllerUtils.throwValidationError(result, next);
       }
-    var id = req.params.collectionId;
-    model.Collection.findAll({
-      where: {
-       id: id,
-      }
-    }).then(function(collection) {
-      res.send(collection);
+      var id = req.params.collectionId;
+      model.Collection.findAll({
+        where: {
+         id: id,
+        }
+      }).then(function(collection) {
+        res.send(collection);
+      });
     });
   });
-
 
 
    /**
    * POST /collections/
    * Create new collection
    */
-  app.post('/collections/', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+  app.post('/collections/', authentication.ensureAuthenticated, function(req, res, next) {
    var userId = req.user;
       var collection = req.body;
       console.log(req.body);
@@ -91,7 +91,7 @@ var includeLastFiveItems = [
    * POST /collections/:collectionsId/addPost/
    */
 
-   app.post('/collections/:collectionId/addPost', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/collections/:collectionId/addPost', authentication.ensureAuthenticated, function(req, res, next) {
 
     var userId = req.user;
     var collectionId = req.params.collectionId;
@@ -133,7 +133,7 @@ var includeLastFiveItems = [
    /**
    * POST /collections/:collectionId/addPost
    */
-   app.post('/collections/:collectionId/removePost', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/collections/:collectionId/removePost', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var collectionId = req.params.collectionId;
     var post = req.body.post;
@@ -170,7 +170,7 @@ var includeLastFiveItems = [
    * POST /collections/:collectionsId/addPost/
    */
 
-   app.post('/collections/:collectionId/addProduct', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/collections/:collectionId/addProduct', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var collectionId = req.params.collectionId;
     var product = req.body.product;
@@ -211,7 +211,7 @@ var includeLastFiveItems = [
    /**
    * POST /collections/:collectionId/addPost
    */
-   app.post('/collections/:collectionId/removeProduct', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/collections/:collectionId/removeProduct', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var collectionId = req.params.collectionId;
     var product = req.body.product;
@@ -243,11 +243,4 @@ var includeLastFiveItems = [
     });
   });
 
-
-
-
-
-
-
-}; /* End of collections controller */
-
+};

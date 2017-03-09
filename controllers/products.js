@@ -1,7 +1,8 @@
 'use strict';
 
-var authenticationUtils = rootRequire('utils/authentication-utils');
+var authentication = rootRequire('middleware/authentication');
 var model = rootRequire('models/model');
+var controllerUtils = rootRequire('controllers/utils');
 
 module.exports.controller = function(app) {
 
@@ -32,34 +33,35 @@ module.exports.controller = function(app) {
   app.get('/products/:productId',
     function(req, res, next) {
       req.checkParams('productId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var productId = req.params.productId;
-      model.Product.find({
-        where: {
-          id: productId
-        },
-        include: [{
-          model: model.Brand
-        },{
-          model: model.Tag
-        },{
-          model: model.Image
-        }]
-      }).then(function(product) {
-        if (product) {
-            res.send(product);
-        } else {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Requested product does not exist';
-          return next(err);
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).catch(function(err) {
-        err.status = 500;
-        return next(err);
+        var productId = req.params.productId;
+        model.Product.find({
+          where: {
+            id: productId
+          },
+          include: [{
+            model: model.Brand
+          },{
+            model: model.Tag
+          },{
+            model: model.Image
+          }]
+        }).then(function(product) {
+          if (product) {
+              res.send(product);
+          } else {
+            var err = new Error();
+            err.status = 404;
+            err.message = 'Requested product does not exist';
+            return next(err);
+          }
+        }).catch(function(err) {
+          err.status = 500;
+          return next(err);
+        });
       });
     });
 
@@ -77,35 +79,36 @@ module.exports.controller = function(app) {
   app.get('/products/sameproducts/:productId',
     function(req, res, next) {
       req.checkParams('productId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var productId = req.params.productId;
-      model.Product.find({
-        where: {
-          id: productId
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(product) {
-        if (product) {
-            model.Product.findAll({
-              where: {
-                productCode: model.Sequelize.and({$ne: null}, {$eq: product.productCode}) ,
-                id: {$ne: product.id}
-              }
-            }).then(function(productsList){
-              // TODO add condition if productsList is undefined
-              res.send(productsList);
-            })
-        } else {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Requested product does not exist';
+        var productId = req.params.productId;
+        model.Product.find({
+          where: {
+            id: productId
+          }
+        }).then(function(product) {
+          if (product) {
+              model.Product.findAll({
+                where: {
+                  productCode: model.Sequelize.and({$ne: null}, {$eq: product.productCode}) ,
+                  id: {$ne: product.id}
+                }
+              }).then(function(productsList){
+                // TODO add condition if productsList is undefined
+                res.send(productsList);
+              })
+          } else {
+            var err = new Error();
+            err.status = 404;
+            err.message = 'Requested product does not exist';
+            return next(err);
+          }
+        }).catch(function(err) {
+          err.status = 500;
           return next(err);
-        }
-      }).catch(function(err) {
-        err.status = 500;
-        return next(err);
+        });
       });
     });
 
@@ -154,46 +157,47 @@ module.exports.controller = function(app) {
     function(req, res, next) {
       console.log('node update product');
       req.checkParams('productId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var productId = req.params.productId;
-      model.Product.find({
-        where: {
-          id: productId
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(product) {
-        if (!product) {
-          return res.status(400).send({
-            message: 'Brand not found'
-          });
-        }
-        console.log('-------');
-        console.log(req.body);
-        console.log('-------');
-        product.update(req.body).
-          then(function(product) {
-          if (product) {
-            // here update all the joined tables,
-            // sequelize has it's own setter and getters ready for the
-            // model.
-            var tagsIds = req.body.Tags.map((tag) => {
-              return tag.id;
-            });
-
-            var brandId = req.body.Brand.id;
-
-            Promise.all([
-              product.setTags(tagsIds),
-              product.setBrand(brandId)
-            ]).then(values => {
-              res.send(product);
+        var productId = req.params.productId;
+        model.Product.find({
+          where: {
+            id: productId
+          }
+        }).then(function(product) {
+          if (!product) {
+            return res.status(400).send({
+              message: 'Brand not found'
             });
           }
-        }).catch(function(err) {
-          err.status = 500;
-          return next(err);
+          console.log('-------');
+          console.log(req.body);
+          console.log('-------');
+          product.update(req.body).
+            then(function(product) {
+            if (product) {
+              // here update all the joined tables,
+              // sequelize has it's own setter and getters ready for the
+              // model.
+              var tagsIds = req.body.Tags.map((tag) => {
+                return tag.id;
+              });
+
+              var brandId = req.body.Brand.id;
+
+              Promise.all([
+                product.setTags(tagsIds),
+                product.setBrand(brandId)
+              ]).then(values => {
+                res.send(product);
+              });
+            }
+          }).catch(function(err) {
+            err.status = 500;
+            return next(err);
+          });
         });
       });
     });
@@ -220,7 +224,7 @@ module.exports.controller = function(app) {
   * GET /posts/:postId/like
   * returns if the user requesting this endpoint liked the post with id postId
   */
-  app.get('/products/:productId/like', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+  app.get('/products/:productId/like', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var productId = req.params.productId;
     model.User.findById(userId).then(function(user) {
@@ -256,7 +260,7 @@ module.exports.controller = function(app) {
    * POST /posts/:postId/like
    */
 
-   app.post('/products/:productId/like', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/products/:productId/like', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var productId = req.params.productId;
     model.User.findById(userId).then(function(user) {
@@ -290,7 +294,7 @@ module.exports.controller = function(app) {
    /**
    * POST /posts/:postId/unlike
    */
-   app.post('/products/:productId/unlike', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/products/:productId/unlike', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var productId = req.params.productId;
     model.User.findById(userId).then(function(user) {
@@ -321,7 +325,4 @@ module.exports.controller = function(app) {
     });
   });
 
-
-
-}; /* End of genres controller */
-
+};

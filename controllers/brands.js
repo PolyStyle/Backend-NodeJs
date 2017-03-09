@@ -1,8 +1,8 @@
 'use strict';
 
-
-var authenticationUtils = rootRequire('utils/authentication-utils');
 var model = rootRequire('models/model');
+var authentication = rootRequire('middleware/authentication');
+var controllerUtils = rootRequire('controllers/utils');
 
 module.exports.controller = function(app) {
 
@@ -24,27 +24,28 @@ module.exports.controller = function(app) {
   app.get('/brands/:brandId',
     function(req, res, next) {
       req.checkParams('brandId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var brandId = req.params.brandId;
-      model.Brand.find({
-        where: {
-          id: brandId
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(brand) {
-        if (brand) {
-            res.send(brand);
-        } else {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Requested brand does not exist';
+        var brandId = req.params.brandId;
+        model.Brand.find({
+          where: {
+            id: brandId
+          }
+        }).then(function(brand) {
+          if (brand) {
+              res.send(brand);
+          } else {
+            var err = new Error();
+            err.status = 404;
+            err.message = 'Requested brand does not exist';
+            return next(err);
+          }
+        }).catch(function(err) {
+          err.status = 500;
           return next(err);
-        }
-      }).catch(function(err) {
-        err.status = 500;
-        return next(err);
+        });
       });
     });
 
@@ -63,31 +64,32 @@ module.exports.controller = function(app) {
   app.get('/brands/stream/:brandId',
     function(req, res, next) {
       req.checkParams('brandId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var brandId = req.params.brandId;
-      model.Product.findAll({
-        where: {
-          BrandId: brandId
-        },
-        group: 'productCode',
-        include: {
-          model: model.Tag
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(brand) {
-        if (brand) {
-            res.send(brand);
-        } else {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Requested brand does not exist';
+        var brandId = req.params.brandId;
+        model.Product.findAll({
+          where: {
+            BrandId: brandId
+          },
+          group: 'productCode',
+          include: {
+            model: model.Tag
+          }
+        }).then(function(brand) {
+          if (brand) {
+              res.send(brand);
+          } else {
+            var err = new Error();
+            err.status = 404;
+            err.message = 'Requested brand does not exist';
+            return next(err);
+          }
+        }).catch(function(err) {
+          err.status = 500;
           return next(err);
-        }
-      }).catch(function(err) {
-        err.status = 500;
-        return next(err);
+        });
       });
     });
 
@@ -101,32 +103,33 @@ module.exports.controller = function(app) {
       console.log(req);
       console.log('-------');
       req.checkParams('brandId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var brandId = req.params.brandId;
-      model.Brand.find({
-        where: {
-          id: brandId
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(brand) {
-        if (!brand) {
-          return res.status(400).send({
-            message: 'Brand not found'
+        var brandId = req.params.brandId;
+        model.Brand.find({
+          where: {
+            id: brandId
+          }
+        }).then(function(brand) {
+          if (!brand) {
+            return res.status(400).send({
+              message: 'Brand not found'
+            });
+          }
+          console.log('-------');
+          console.log(req.body);
+          console.log('-------');
+          brand.update(req.body).
+            then(function(brand) {
+            if (brand) {
+                res.send(brand);
+            } 
+          }).catch(function(err) {
+            err.status = 500;
+            return next(err);
           });
-        }
-        console.log('-------');
-        console.log(req.body);
-        console.log('-------');
-        brand.update(req.body).
-          then(function(brand) {
-          if (brand) {
-              res.send(brand);
-          } 
-        }).catch(function(err) {
-          err.status = 500;
-          return next(err);
         });
       });
     });
@@ -168,7 +171,7 @@ module.exports.controller = function(app) {
   * returns the association if exists between the requester of the end point
   * and :brandId
   */
-  app.get('/brands/:brandId/follow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+  app.get('/brands/:brandId/follow', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var brandId = req.params.brandId;
     model.User.findById(userId).then(function(user) {
@@ -219,7 +222,7 @@ module.exports.controller = function(app) {
    *                            message - Human readable error message
    *                            details - Error details (optional)
    */
-   app.post('/brands/:brandId/follow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/brands/:brandId/follow', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var brandId = req.params.brandId;
     model.User.findById(userId).then(function(user) {
@@ -269,7 +272,7 @@ module.exports.controller = function(app) {
    *                            message - Human readable error message
    *                            details - Error details (optional)
    */
-   app.post('/brands/:brandId/unfollow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/brands/:brandId/unfollow', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var brandId = req.params.brandId;
     model.User.findById(userId).then(function(user) {
@@ -301,6 +304,4 @@ module.exports.controller = function(app) {
     });
   });
 
-
-
-}; /* End of genres controller */
+};

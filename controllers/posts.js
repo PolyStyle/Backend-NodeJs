@@ -1,7 +1,8 @@
 'use strict';
 
-var authenticationUtils = rootRequire('utils/authentication-utils');
+var authentication = rootRequire('middleware/authentication');
 var model = rootRequire('models/model');
+var controllerUtils = rootRequire('controllers/utils');
 
 var inflatedObject = [
       {
@@ -60,28 +61,29 @@ module.exports.controller = function(app) {
   app.get('/posts/:postId',
     function(req, res, next) {
       req.checkParams('postId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var postId = req.params.postId;
-      model.Post.find({
-        where: {
-          id: postId
-        },
-        include: inflatedObject
-      }).then(function(post) {
-        if (post) {
-            res.send(post);
-        } else {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Requested post does not exist';
-          return next(err);
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).catch(function(err) {
-        err.status = 500;
-        return next(err);
+        var postId = req.params.postId;
+        model.Post.find({
+          where: {
+            id: postId
+          },
+          include: inflatedObject
+        }).then(function(post) {
+          if (post) {
+              res.send(post);
+          } else {
+            var err = new Error();
+            err.status = 404;
+            err.message = 'Requested post does not exist';
+            return next(err);
+          }
+        }).catch(function(err) {
+          err.status = 500;
+          return next(err);
+        });
       });
     });
 
@@ -128,51 +130,52 @@ module.exports.controller = function(app) {
     function(req, res, next) {
       console.log('node update post');
       req.checkParams('postId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var postId = req.params.postId;
-      model.Post.find({
-        where: {
-          id: postId
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(post) {
-        if (!post) {
-          return res.status(400).send({
-            message: 'Brand not found'
-          });
-        }
-        console.log('-------');
-        console.log(req.body);
-        console.log('-------');
-        post.update(req.body).
-          then(function(post) {
-          if (post) {
-            // here update all the joined tables,
-            // sequelize has it's own setter and getters ready for the
-            // model.
-            var tagsIds = req.body.Tags.map((tag) => {
-              return tag.id;
-            });
-            var brandsIds = req.body.Brands.map((brand) => {
-              return brand.id;
-            });
-            var productsIds = req.body.Products.map((product) => {
-              return product.id;
-            });
-
-            Promise.all([
-              post.setTags(tagsIds),
-              post.setBrands(brandsIds),
-              post.setProducts(productsIds)
-            ]).then(values => {
-              res.send(post);
+        var postId = req.params.postId;
+        model.Post.find({
+          where: {
+            id: postId
+          }
+        }).then(function(post) {
+          if (!post) {
+            return res.status(400).send({
+              message: 'Brand not found'
             });
           }
-        }).catch(function(err) {
-          err.status = 500;
-          return next(err);
+          console.log('-------');
+          console.log(req.body);
+          console.log('-------');
+          post.update(req.body).
+            then(function(post) {
+            if (post) {
+              // here update all the joined tables,
+              // sequelize has it's own setter and getters ready for the
+              // model.
+              var tagsIds = req.body.Tags.map((tag) => {
+                return tag.id;
+              });
+              var brandsIds = req.body.Brands.map((brand) => {
+                return brand.id;
+              });
+              var productsIds = req.body.Products.map((product) => {
+                return product.id;
+              });
+
+              Promise.all([
+                post.setTags(tagsIds),
+                post.setBrands(brandsIds),
+                post.setProducts(productsIds)
+              ]).then(values => {
+                res.send(post);
+              });
+            }
+          }).catch(function(err) {
+            err.status = 500;
+            return next(err);
+          });
         });
       });
     });
@@ -183,7 +186,7 @@ module.exports.controller = function(app) {
   * GET /posts/:postId/like
   * returns if the user requesting this endpoint liked the post with id postId
   */
-  app.get('/posts/:postId/like', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+  app.get('/posts/:postId/like', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var postId = req.params.postId;
     model.User.findById(userId).then(function(user) {
@@ -219,7 +222,7 @@ module.exports.controller = function(app) {
    * POST /posts/:postId/like
    */
 
-   app.post('/posts/:postId/like', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/posts/:postId/like', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var postId = req.params.postId;
     model.User.findById(userId).then(function(user) {
@@ -253,7 +256,7 @@ module.exports.controller = function(app) {
    /**
    * POST /posts/:postId/unlike
    */
-   app.post('/posts/:postId/unlike', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/posts/:postId/unlike', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var postId = req.params.postId;
     model.User.findById(userId).then(function(user) {
@@ -284,12 +287,4 @@ module.exports.controller = function(app) {
     });
   });
 
-
-
-
-
-
-
-
-}; /* End of genres controller */
-
+};

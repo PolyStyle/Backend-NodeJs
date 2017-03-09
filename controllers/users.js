@@ -7,13 +7,14 @@ var request = require('request');
 var jwt = require('jsonwebtoken');
 
 var fileUtils = rootRequire('utils/file-utils');
-var authenticationUtils = rootRequire('utils/authentication-utils');
+var authentication = rootRequire('middleware/authentication');
 var model = rootRequire('models/model');
 var cloudstorage = rootRequire('libs/cdn/cloudstorage');
 var config = rootRequire('config/config');
 var imageModel = rootRequire('models/images');
 var cdn = rootRequire('libs/cdn/cloudstorage');
 var accessTokens = rootRequire('models/access-tokens');
+var controllerUtils = rootRequire('controllers/utils');
 
 facebook.options({
     appId:          config.FACEBOOK_APP_ID,
@@ -51,12 +52,8 @@ module.exports.controller = function(app) {
   app.post('/users/login/facebook', function(req, res, next) {
     req.checkBody('accessToken', 'Missing FB access token').notEmpty();
     req.getValidationResult().then(function(result) {
-      if (!result.isEmpty()) {
-        var err = new Error();
-        err.status = 400;
-        err.message = 'There have been validation errors';
-        err.details = result.array();
-        return next(err);
+      if (result && !result.isEmpty()) {
+        return controllerUtils.throwValidationError(result, next);
       }
       var accessToken = req.body.accessToken;
       var parameters = {
@@ -151,7 +148,7 @@ module.exports.controller = function(app) {
    * Test with CURL:
    * curl -H "Authorization: Bearer ACCESS_TOKEN" localhost:3000/users/me
    */
-  app.get('/users/me', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+  app.get('/users/me', authentication.ensureAuthenticated, function(req, res, next) {
     model.User.findById(req.user).then(function(user) {
       if (!user) {
         var err = new Error();
@@ -203,12 +200,8 @@ module.exports.controller = function(app) {
   app.post('/users/me/token', function(req, res, next) {
     req.checkBody('refreshToken', 'Missing refresh token').notEmpty();
     req.getValidationResult().then(function(result) {
-      if (!result.isEmpty()) {
-        var err = new Error();
-        err.status = 400;
-        err.message = 'There have been validation errors';
-        err.details = result.array();
-        return next(err);
+      if (result && !result.isEmpty()) {
+        return controllerUtils.throwValidationError(result, next);
       }
       accessTokens.refreshAccessToken(req.body.refreshToken).then(function(accessToken) {
         return res.send(JSON.stringify(accessToken));
@@ -224,7 +217,7 @@ module.exports.controller = function(app) {
    * Get authenticated user profile information
    */
   app.get('/me/cart',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     function(req, res) {
 
       model.User.find({
@@ -261,7 +254,7 @@ module.exports.controller = function(app) {
    * Get authenticated user profile information
    */
   app.get('/me/cart',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     function(req, res) {
 
       model.User.find({
@@ -344,7 +337,7 @@ module.exports.controller = function(app) {
    * Add a Release to the Cart
    */
   app.post('/me/cart/release/:id',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     function(req, res) {
 
       var releaseId = req.params.id;
@@ -403,7 +396,7 @@ module.exports.controller = function(app) {
    * Add a Track to the Cart
    */
   app.post('/me/cart/track/:id',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     function(req, res) {
       var trackId = req.params.id;
       model.User.find({
@@ -464,7 +457,7 @@ module.exports.controller = function(app) {
    * Remove a Track from the Cart
    */
   app.delete('/me/cart/track/:id',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     function(req, res) {
       var trackId = req.params.id;
       console.log('DELETE TRACK');
@@ -485,7 +478,7 @@ module.exports.controller = function(app) {
    * Remove a Release from the Cart
    */
   app.delete('/me/cart/release/:id',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     function(req, res) {
       var releaseId = req.params.id;
       console.log('DELETE RELEASE');
@@ -507,7 +500,7 @@ module.exports.controller = function(app) {
    * Get authenticated user library
    */
   app.get('/me/library',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     function(req, res) {
 
       model.LibraryItem.findAll({
@@ -532,7 +525,7 @@ module.exports.controller = function(app) {
    * Update the authenticated user profile information
    */
   app.put('/me',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     function(req, res, next) {
       model.User.find({
         where: {
@@ -560,7 +553,7 @@ module.exports.controller = function(app) {
    * Upload user profile picture to the CDN, original size and resized
    */
   app.post('/upload/profilePicture/:width/:height/',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     fileUtils.uploadFunction(
       fileUtils.localImagePath,
       fileUtils.remoteImagePath),
@@ -636,31 +629,32 @@ module.exports.controller = function(app) {
   app.put('/users/:userId',
     function(req, res, next) {
       req.checkParams('userId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var userId = req.params.userId;
-      model.User.find({
-        where: {
-          id: userId
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(user) {
-        if (!user) {
-          return res.status(400).send({
-            message: 'User not found'
-          });
-        }
-        console.log(req.body);
-
-        user.update(req.body).
-          then(function(user) {
-          if (user) {
-              res.send(user);
+        var userId = req.params.userId;
+        model.User.find({
+          where: {
+            id: userId
           }
-        }).catch(function(err) {
-          err.status = 500;
-          return next(err);
+        }).then(function(user) {
+          if (!user) {
+            return res.status(400).send({
+              message: 'User not found'
+            });
+          }
+          console.log(req.body);
+
+          user.update(req.body).
+            then(function(user) {
+            if (user) {
+                res.send(user);
+            }
+          }).catch(function(err) {
+            err.status = 500;
+            return next(err);
+          });
         });
       });
     });
@@ -671,7 +665,7 @@ module.exports.controller = function(app) {
    * Look for a user by displayName
    */
   app.get('/users/search/:searchString',
-    authenticationUtils.ensureAuthenticated,
+    authentication.ensureAuthenticated,
     function(req, res) {
       var searchString = req.params.searchString;
       model.User.findAll({
@@ -691,27 +685,28 @@ module.exports.controller = function(app) {
   app.get('/users/:userId',
      function(req, res, next) {
       req.checkParams('userId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var userId = req.params.userId;
-      model.User.find({
-        where: {
-          id: userId
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).then(function(user) {
-        if (user) {
-            res.send(user);
-        } else {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Requested brand does not exist';
+        var userId = req.params.userId;
+        model.User.find({
+          where: {
+            id: userId
+          }
+        }).then(function(user) {
+          if (user) {
+              res.send(user);
+          } else {
+            var err = new Error();
+            err.status = 404;
+            err.message = 'Requested brand does not exist';
+            return next(err);
+          }
+        }).catch(function(err) {
+          err.status = 500;
           return next(err);
-        }
-      }).catch(function(err) {
-        err.status = 500;
-        return next(err);
+        });
       });
     });
 
@@ -729,46 +724,46 @@ module.exports.controller = function(app) {
   app.get('/users/stream/:userId',
     function(req, res, next) {
       req.checkParams('userId', 'Invalid post id').notEmpty().isInt();
-      var errors = req.validationErrors();
-      if (errors) {
-        return throwValidationError(errors, next);
-      }
-      var userId = req.params.userId;
-      model.Post.findAll({
-        where: {
-          UserId: userId
-        },
-        include: [
-          {
-            model: model.Tag
-          },
-          {
-            model: model.Brand,
-          },{
-            model: model.User
-          },
-          {
-            model: model.Product,
-            include: [{
-              model: model.Brand
-            }]
-          }
-        ]
-      }).then(function(brand) {
-        if (brand) {
-            res.send(brand);
-        } else {
-          var err = new Error();
-          err.status = 404;
-          err.message = 'Requested brand does not exist';
-          return next(err);
+      req.getValidationResult().then(function(result) {
+        if (result && !result.isEmpty()) {
+          return controllerUtils.throwValidationError(result, next);
         }
-      }).catch(function(err) {
-        err.status = 500;
-        return next(err);
+        var userId = req.params.userId;
+        model.Post.findAll({
+          where: {
+            UserId: userId
+          },
+          include: [
+            {
+              model: model.Tag
+            },
+            {
+              model: model.Brand,
+            },{
+              model: model.User
+            },
+            {
+              model: model.Product,
+              include: [{
+                model: model.Brand
+              }]
+            }
+          ]
+        }).then(function(brand) {
+          if (brand) {
+              res.send(brand);
+          } else {
+            var err = new Error();
+            err.status = 404;
+            err.message = 'Requested brand does not exist';
+            return next(err);
+          }
+        }).catch(function(err) {
+          err.status = 500;
+          return next(err);
+        });
       });
     });
-
 
 
    /**
@@ -776,7 +771,7 @@ module.exports.controller = function(app) {
   * returns all the users folledwed by the the requester of the end point
   * and :userId
   */
-  app.get('/users/following', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+  app.get('/users/following', authentication.ensureAuthenticated, function(req, res, next) {
     var followerId = req.user;
     model.User.findById(followerId).then(function(user) {
       if (!user) {
@@ -811,7 +806,7 @@ module.exports.controller = function(app) {
   * returns the association if exists between the requester of the end point
   * and :userId
   */
-  app.get('/users/:userId/follow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+  app.get('/users/:userId/follow', authentication.ensureAuthenticated, function(req, res, next) {
     var followerId = req.user;
     var userId = req.params.userId;
     model.User.findById(followerId).then(function(user) {
@@ -862,7 +857,7 @@ module.exports.controller = function(app) {
    *                            message - Human readable error message
    *                            details - Error details (optional)
    */
-   app.post('/users/:userId/follow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/users/:userId/follow', authentication.ensureAuthenticated, function(req, res, next) {
     var followerId = req.user;
     var userId = req.params.userId;
     model.User.findById(followerId).then(function(user) {
@@ -912,7 +907,7 @@ module.exports.controller = function(app) {
    *                            message - Human readable error message
    *                            details - Error details (optional)
    */
-   app.post('/users/:userId/unfollow', authenticationUtils.ensureAuthenticated, function(req, res, next) {
+   app.post('/users/:userId/unfollow', authentication.ensureAuthenticated, function(req, res, next) {
     var followerId = req.user;
     var userId = req.params.userId;
     model.User.findById(userId).then(function(user) {
@@ -945,4 +940,4 @@ module.exports.controller = function(app) {
   });
 
 
-}; /* End of users controller */
+};

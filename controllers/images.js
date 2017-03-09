@@ -3,6 +3,8 @@
 var model = rootRequire('models/model');
 var imageModel = rootRequire('models/images');
 var cdn = rootRequire('libs/cdn/cloudstorage');
+var controllerUtils = rootRequire('controllers/utils');
+
 var path = require('path');
 var sharp = require('sharp');
 var multer  = require('multer');
@@ -249,12 +251,8 @@ module.exports.controller = function(app) {
     req.checkParams('id', 'Invalid image id').notEmpty().isInt();
     req.checkParams('width', 'Invalid image width').notEmpty().isInt();
     req.getValidationResult().then(function(result) {
-      if (!result.isEmpty()) {
-        var err = new Error();
-        err.status = 400;
-        err.message = 'There have been validation errors';
-        err.details = result.array();
-        return next(err);
+      if (result && !result.isEmpty()) {
+        return controllerUtils.throwValidationError(result, next);
       }
       var id = req.params.id;
       var width = req.params.width;
@@ -300,4 +298,5 @@ module.exports.controller = function(app) {
       });
     });
   });
-}
+
+};
