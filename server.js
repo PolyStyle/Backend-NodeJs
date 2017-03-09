@@ -135,10 +135,6 @@ var images = rootRequire('controllers/images.js').controller(app)
 
 var collections = rootRequire('controllers/collections.js').controller(app)
 
-// Old legacy to be removed
-var authenticators = rootRequire('controllers/authenticators.js').controller(app)
-
-
 /**
  * Error handlers have to be defined after all routes
  * development: prints stack traces
