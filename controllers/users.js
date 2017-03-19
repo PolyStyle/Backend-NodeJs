@@ -87,7 +87,7 @@ module.exports.controller = function(app) {
           if (response.picture && response.picture.data && response.picture.data.url) {
             // We can afford to ignore exceptions for profile pic upload
             imageModel.createImageFromUrl(response.picture.data.url, '.jpg', 50, 50).then(function(image) {
-              user.avatar = image.id;
+              user.ImageId = image.id;
               user.save();
             });
           }
@@ -100,7 +100,7 @@ module.exports.controller = function(app) {
               firstName: user.first_name,
               lastName: user.last_name,
               gender: user.gender,
-              avatar: user.avatar,
+              ImageId: user.ImageId,
               role: user.role,
               createdAt: user.createdAt,
               updatedAt: user.updatedAt,
@@ -163,7 +163,7 @@ module.exports.controller = function(app) {
         firstName: user.first_name,
         lastName: user.last_name,
         gender: user.gender,
-        avatar: user.avatar,
+        imageId: user.ImageId,
         role: user.role,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -889,7 +889,7 @@ module.exports.controller = function(app) {
       return next(err);
     });
   });
-   
+
    /**
    * POST /brands/:brandId/unfollow
    * Add BrandId to the list of brands followed by the user issuing the request
