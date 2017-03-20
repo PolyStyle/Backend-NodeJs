@@ -122,6 +122,7 @@ module.exports.controller = function(app) {
    */
   app.post('/images/upload/', function(req, res, next) {
     return upload(req, res, function (err) {
+      console.log(req)
       err = err ? err : validate(req, res, next);
       if (err) {
         // An error occurred when uploading
@@ -129,7 +130,7 @@ module.exports.controller = function(app) {
       }
       var extension = path.extname(req.file.path);
       var uploadPath = req.file.path;
-      console.log(req.body);
+
       var sizes = JSON.parse(req.body.sizes);
       var sizesProcessed = 0;
       var uploadedSizes = [];
@@ -230,7 +231,7 @@ module.exports.controller = function(app) {
 
   /**
    * Returns the requested image provided its id an minimum width.
-   * 
+   *
    * req.params.id      - The id of the image to return
    * req.params.width   - The width we are interested in. The returned image will at least be width
    *
@@ -245,7 +246,7 @@ module.exports.controller = function(app) {
    *                      details - Error details (optional)
    *
    * Test with CURL:
-   * curl localhost:3000/images/5/200             
+   * curl localhost:3000/images/5/200
    */
   app.get('/images/:id/:width', function(req, res, next) {
     req.checkParams('id', 'Invalid image id').notEmpty().isInt();

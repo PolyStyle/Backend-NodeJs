@@ -81,7 +81,7 @@ module.exports.controller = function(app) {
             facebookToken: accessToken
           }
         }).spread(function(user, created) {
-          console.log(user);
+
 
           // Move profile picture to CDN
           if (response.picture && response.picture.data && response.picture.data.url) {
@@ -213,340 +213,42 @@ module.exports.controller = function(app) {
   });
 
   /**
-   * GET /me
-   * Get authenticated user profile information
-   */
-  app.get('/me/cart',
-    authentication.ensureAuthenticated,
-    function(req, res) {
-
-      model.User.find({
-        where: {
-          id: req.user
-        }
-      }).then(function(user) {
-
-        user.getCartItems({
-          include: [{
-            model: model.Track,
-            include: [{
-              model: model.Artist,
-              as: 'Producer'
-            },{model: model.Release,
-              include: model.Label
-            }]
-          }, {
-            model: model.Release,
-            include: [{
-              model: model.Track
-            },{
-              model: model.Label
-            }]
-          }]
-        }).then(function(items) {
-          res.send(items);
-        });
-      });
-    });
-
-  /**
-   * GET /me
-   * Get authenticated user profile information
-   */
-  app.get('/me/cart',
-    authentication.ensureAuthenticated,
-    function(req, res) {
-
-      model.User.find({
-        where: {
-          id: req.user
-        }
-      }).then(function(user) {
-
-        user.getCartItems({
-          include: [{
-            model: model.Track,
-            include: [{
-              model: model.Artist,
-              as: 'Producer'
-            },{model: model.Release,
-              include: model.Label
-            }]
-          }, {
-            model: model.Release,
-            include: [{
-              model: model.Track
-            },{
-              model: model.Label
-            }]
-          }]
-        }).then(function(items) {
-          res.send(items);
-        });
-      });
-    });
-
-  /**
-   * GET '/me/cart/currency'
-   * Get user's currency based on geolocalization
-   */
-  app.get('/me/cart/currency', function(req, res) {
-    // QUESTION:  shall we change CURRENCY at every connection ?
-    // A User that lives in london, is traveling to US, which currency shall we
-    // display? So far we geolocalize every request
-    var ip = req.header('x-forwarded-for') || req.connection.remoteAddress;
-
-    var geo = geoip.lookup(ip);
-    var country = 'US';
-    if (geo) {
-      country = geo.country;
-    }
-    console.log('country' + country);
-    console.log('geo');
-    console.log(geo);
-    model.Internationalization.find({
-      where: {
-        country: country
-      },
-      include: [{
-        model: model.Currency,
-        include: {
-          model: model.ConvertedPrice
-        }
-      }]
-    }).then(function(country) {
-      if (country) {
-        res.send(country.Currency);
-      } else {
-        model.Currency.find({
-          where: {
-            shortname: model.DefaultCurrency
-          },
-          include: {
-            model: model.ConvertedPrice
-          }
-        }).then(function(currency) {
-          res.send(currency);
-        });
-      }
-    });
-  });
-
-  /**
-   * POST /me/cart/release/:id
-   * Add a Release to the Cart
-   */
-  app.post('/me/cart/release/:id',
-    authentication.ensureAuthenticated,
-    function(req, res) {
-
-      var releaseId = req.params.id;
-      model.User.find({
-        where: {
-          id: req.user
-        }
-      }).then(function(user) {
-        if (!user) {
-          return res.status(400).send({
-            message: 'User not found'
-          });
-        }
-
-        model.CartItem.create({
-          UserId: req.user,
-          ReleaseId: releaseId
-        }).then(function(createdItem) {
-          // TODO (@ziccard): refactor the following code.
-          // Is it possible to have as the return object the Item
-          // with all the inclusion executed?
-
-
-          model.CartItem.find({
-            where: {
-              id: createdItem.id
-            },
-            include: [{
-              model: model.Track,
-              include: [{
-                model: model.Artist,
-                as: 'Producer'
-              },{model: model.Release,
-                include: model.Label
-              }]
-            }, {
-              model: model.Release,
-              include: [{
-                model: model.Track
-              },{
-                model: model.Label
-              }]
-            }]
-          }).then(function(items) {
-            res.send(items);
-          });
-
-
-
-        });
-      });
-    });
-
-  /**
-   * POST /me/cart/track/:id
-   * Add a Track to the Cart
-   */
-  app.post('/me/cart/track/:id',
-    authentication.ensureAuthenticated,
-    function(req, res) {
-      var trackId = req.params.id;
-      model.User.find({
-        where: {
-          id: req.user
-        }
-      }).then(function(user) {
-        if (!user) {
-          return res.status(400).send({
-            message: 'User not found'
-          });
-        }
-
-        model.CartItem.create({
-          UserId: req.user,
-          TrackId: trackId
-        }).then(function(item) {
-
-
-          // TODO (@ziccard): refactor the following code.
-          // Is it possible to have as the return object the Item
-          // with all the inclusion executed?
-
-
-          model.CartItem.find({
-            where: {
-              id: item.id
-            },
-            include: [{
-              model: model.Track,
-              include: [{
-                model: model.Artist,
-                as: 'Producer'
-              },{model: model.Release,
-                include: model.Label
-              }]
-            }, {
-              model: model.Release,
-              include: [{
-                model: model.Track
-              },{
-                model: model.Label
-              }]
-            }]
-          }).then(function(items) {
-            res.send(items);
-          });
-
-
-
-
-        });
-      });
-    });
-
-  /**
-   * DELETE /me/cart/track/:id
-   * Remove a Track from the Cart
-   */
-  app.delete('/me/cart/track/:id',
-    authentication.ensureAuthenticated,
-    function(req, res) {
-      var trackId = req.params.id;
-      console.log('DELETE TRACK');
-      model.CartItem.findOne({
-        where: {
-          UserId: req.user,
-          TrackId: trackId
-        }
-      }).then(function(cartItem) {
-        cartItem.destroy().then(function() {
-          res.send();
-        });
-      });
-    });
-
-  /**
-   * DELETE /me/cart/track/:id
-   * Remove a Release from the Cart
-   */
-  app.delete('/me/cart/release/:id',
-    authentication.ensureAuthenticated,
-    function(req, res) {
-      var releaseId = req.params.id;
-      console.log('DELETE RELEASE');
-      model.CartItem.findOne({
-        where: {
-          UserId: req.user,
-          ReleaseId: releaseId
-        }
-      }).then(function(cartItem) {
-        cartItem.destroy().then(function() {
-          res.send();
-        });
-        console.log(cartItem);
-      });
-    });
-
-  /**
-   * GET /me/library
-   * Get authenticated user library
-   */
-  app.get('/me/library',
-    authentication.ensureAuthenticated,
-    function(req, res) {
-
-      model.LibraryItem.findAll({
-        include: [{
-          model: model.Track,
-          include: [{
-            model: model.Artist,
-            as: 'Producer'
-          }],
-        }],
-        where: {
-          UserId: req.user
-        }
-      }).then(function(itemLists) {
-        res.send(itemLists);
-      });
-    });
-
-
-  /**
-   * PUT /api/me
+   * PUT /users/me
    * Update the authenticated user profile information
    */
-  app.put('/me',
-    authentication.ensureAuthenticated,
-    function(req, res, next) {
-      model.User.find({
-        where: {
-          id: req.user
+
+  app.put('/users/me', authentication.ensureAuthenticated, function(req, res, next) {
+    var userId = req.user;
+    var newProfile = req.body.profile
+    model.User.findById(userId).then(function(user) {
+      if (!user) {
+        var err = new Error();
+        err.status = 404;
+        err.message = 'Failed to create association User follows Brand in DB';
+        err.details = databaseError;
+        return next(err);
+      }
+
+      user.update(newProfile).then(function(user) {
+
+        if (user) {
+          model.User.findById(user.id).then(
+            function(updatedUser) {
+              res.send(updatedUser);
+            })
         }
-      }).then(function(user) {
-        if (!user) {
-          return res.status(400).send({
-            message: 'User not found'
-          });
-        }
-        user.displayName = req.body.displayName || user.displayName;
-        user.email = req.body.email || user.email;
-        user.save(function(err) {
-          if (err) {
-            return next(err);
-          }
-          res.status(200).end();
-        });
+      }).catch(function(err) {
+        err.status = 500;
+        return next(err);
       });
+    }).catch(function(databaseError) {
+      var err = new Error();
+      err.status = 500;
+      err.message = 'Failed to create UserPost Likes association from DB';
+      err.details = databaseError;
+      return next(err);
     });
+  });
 
   /**
    * POST /upload/profilePicture/:width/:height/
@@ -617,7 +319,6 @@ module.exports.controller = function(app) {
       model.User.findAll({
         attributes: ['id','avatar','ImageId', 'displayName']
       }).then(function(users) {
-        console.log(users);
         res.send(users);
       });
     });
@@ -644,8 +345,6 @@ module.exports.controller = function(app) {
               message: 'User not found'
             });
           }
-          console.log(req.body);
-
           user.update(req.body).
             then(function(user) {
             if (user) {
@@ -673,7 +372,6 @@ module.exports.controller = function(app) {
           displayName: searchString
         },
       }).then(function(users) {
-        console.log(users);
         res.send(users);
       });
     });
