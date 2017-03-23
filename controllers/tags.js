@@ -9,7 +9,7 @@ var inflatedObject = [
         model: model.Tag
       },
       {
-        model: model.Brand, 
+        model: model.Brand,
       },{
         model: model.User
       },
@@ -29,7 +29,7 @@ module.exports.controller = function(app) {
     });
   });
 
-  
+
 
   app.get('/tags/search/:queryString', function(req, res) {
     var queryString = req.params.queryString;
@@ -89,7 +89,7 @@ module.exports.controller = function(app) {
    *  TODO: for now we just fetch all the PRODUCTS,
    * in the future we need to first see if the Brand has an associated user ID,
    * if that user ID has posted a post,
-   * and then 
+   * and then
    * @param {object} req - The request object
    * @param {object} res - The response object
    * @param {function} next - Middleware function to continue the call chain
@@ -108,10 +108,10 @@ module.exports.controller = function(app) {
               model: model.Tag,
               where: {
                 id: tagId
-              }, 
+              },
             },
             {
-              model: model.Brand, 
+              model: model.Brand,
             },{
               model: model.User
             },
@@ -149,7 +149,7 @@ module.exports.controller = function(app) {
 
       model.Tag.create({
         displayName: tag.displayName,
-      }).then(function(tag) { 
+      }).then(function(tag) {
         res.send(tag);
       });
     }

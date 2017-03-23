@@ -173,7 +173,8 @@ var includeLastFiveItems = [
    app.post('/collections/:collectionId/addProduct', authentication.ensureAuthenticated, function(req, res, next) {
     var userId = req.user;
     var collectionId = req.params.collectionId;
-    var product = req.body.product;
+    var product = req.body;
+    console.log(req.body.product)
     model.User.findById(userId).then(function(user) {
       if (!user) {
         var err = new Error();
@@ -188,6 +189,7 @@ var includeLastFiveItems = [
           id: collectionId,
         }
       }).then(function(collection){
+        console.log(product)
         model.CollectionProduct.findOrCreate({
           where: {
             CollectionId: collection.id,
